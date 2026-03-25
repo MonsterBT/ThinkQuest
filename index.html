@@ -1,0 +1,472 @@
+import { useState, useEffect } from “react”;
+
+const WORLDS = [
+{ id:“patterns”, name:“Cipher Caves”,     emoji:“🔍”, color:”#7c3aed”, light:”#a78bfa”, bg:”#1a0f3a”, desc:“Spot the rule, crack the code” },
+{ id:“logic”,    name:“Detective HQ”,     emoji:“🔎”, color:”#0891b2”, light:”#67e8f9”, bg:”#0a1f2e”, desc:“Use clues to find the truth” },
+{ id:“combos”,   name:“Alchemist’s Lab”,  emoji:“🧪”, color:”#059669”, light:”#6ee7b7”, bg:”#0a2018”, desc:“Count every possibility” },
+{ id:“strategy”, name:“Strategy Citadel”, emoji:“♟️”, color:”#b45309”, light:”#fcd34d”, bg:”#1f1500”, desc:“Think ahead, outsmart opponents” },
+];
+
+const DIFFICULTIES = [
+{ id:“easy”,   label:“Easy”,   emoji:“🌱”, desc:“Simple, 1-step problems”,      color:”#10b981” },
+{ id:“medium”, label:“Medium”, emoji:“🌿”, desc:“2–3 steps, some tricky bits”,  color:”#f59e0b” },
+{ id:“hard”,   label:“Hard”,   emoji:“🔥”, desc:“Multi-step, real brain work”,  color:”#ef4444” },
+];
+
+const AVATARS = [“🧒”,“👧”,“🧑”,“👦”,“🧙”,“🦸”,“🧝”,“🐉”];
+
+// ── STORAGE ───────────────────────────────────────────────────
+async function saveTo(key, val, shared=false) {
+try { await window.storage.set(key, JSON.stringify(val), shared); } catch(e){}
+}
+async function loadFrom(key, shared=false) {
+try { const r=await window.storage.get(key,shared); return r?JSON.parse(r.value):null; } catch(e){ return null; }
+}
+
+// ── AI QUESTION GENERATOR ─────────────────────────────────────
+async function generateQuestions(domain, difficulty) {
+const prompts = {
+patterns: `Generate 3 pattern recognition puzzles for children aged 7-12. Difficulty: ${difficulty}. Each puzzle must be a self-contained reasoning challenge — sequences, grids, rules, or odd-one-out problems. Vary the structure fully: don't repeat the same format across the 3 puzzles.`,
+logic: `Generate 3 logical deduction puzzles for children aged 7-12. Difficulty: ${difficulty}. Use varied formats: who-has-what, true/false chains, if-then reasoning, or find-the-liar. Each puzzle must be different in structure.`,
+combos: `Generate 3 combinatorics / counting puzzles for children aged 7-12. Difficulty: ${difficulty}. Cover different concepts: combinations, arrangements, tree diagrams, or worst-case counting. Each puzzle must be structurally different.`,
+strategy: `Generate 3 strategic thinking puzzles for children aged 7-12. Difficulty: ${difficulty}. Cover different scenarios: resource decisions, game moves, trade-offs, or opponent modelling. Each puzzle must be different in structure.`,
+};
+
+const systemPrompt = `You are a puzzle designer for a children's learning game.  Generate exactly 3 puzzles as a JSON array. Each puzzle must have this exact structure: { "q": "The question text (use \\n for line breaks, keep it short and clear)", "type": "tap" or "elim", "options": ["A","B","C","D"],   // exactly 4 options for tap type "items": ["A","B","C"],         // 3-5 items for elim type (tap to choose one) "answer": 0,                    // index of correct answer in options or items array "hint": "A short helpful clue without giving the answer away", "explain": "A clear 1-2 sentence explanation of why the answer is correct" } For "tap" type: provide "options" (4 choices). Do NOT include "items". For "elim" type: provide "items" (the choices to tap). Do NOT include "options". Return ONLY the JSON array, no markdown, no explanation, no backticks.`;
+
+const userPrompt = prompts[domain];
+
+try {
+const res = await fetch(“https://api.anthropic.com/v1/messages”, {
+method:“POST”,
+headers:{“Content-Type”:“application/json”},
+body: JSON.stringify({
+model:“claude-sonnet-4-20250514”,
+max_tokens:1000,
+system: systemPrompt,
+messages:[{ role:“user”, content: userPrompt }]
+})
+});
+const data = await res.json();
+const text = data.content?.[0]?.text || “[]”;
+const puzzles = JSON.parse(text);
+// normalise — ensure answer is a number
+return puzzles.map(p=>({ …p, answer: Number(p.answer) }));
+} catch(e) {
+return null;
+}
+}
+
+// ── UI HELPERS ────────────────────────────────────────────────
+function XPBar({ xp, color=”#7c3aed” }) {
+return (
+<div style={{background:“rgba(255,255,255,.12)”,borderRadius:8,height:7,overflow:“hidden”,width:“100%”}}>
+<div style={{height:“100%”,borderRadius:8,background:`linear-gradient(90deg,${color},#06b6d4)`,width:`${Math.min(100,(xp/500)*100)}%`,transition:“width .6s ease”}}/>
+</div>
+);
+}
+function Dots({ total, current, answers }) {
+return (
+<div style={{display:“flex”,gap:5,justifyContent:“center”}}>
+{Array.from({length:total}).map((_,i)=>(
+<div key={i} style={{width:i===current?18:8,height:8,borderRadius:4,background:i<answers.length?(answers[i]?”#10b981”:”#ef4444”):i===current?”#a78bfa”:“rgba(255,255,255,.2)”,transition:“all .3s”}}/>
+))}
+</div>
+);
+}
+
+// ── PUZZLE COMPONENTS ─────────────────────────────────────────
+function TapPuzzle({ puzzle, onResult }) {
+const [sel,setSel]=useState(null);
+const [locked,setLocked]=useState(false);
+function pick(i){ if(locked)return; setSel(i);setLocked(true); setTimeout(()=>onResult(i===puzzle.answer),600); }
+const opts = puzzle.options || [];
+return (
+<div style={{display:“grid”,gridTemplateColumns:“1fr 1fr”,gap:10}}>
+{opts.map((opt,i)=>{
+let bg=“rgba(255,255,255,.08)”,border=“1px solid rgba(255,255,255,.14)”;
+if(locked){ if(i===puzzle.answer){bg=“rgba(16,185,129,.3)”;border=“2px solid #10b981”;} else if(i===sel){bg=“rgba(239,68,68,.25)”;border=“2px solid #ef4444”;} }
+return <button key={i} onClick={()=>pick(i)} style={{background:bg,border,borderRadius:16,padding:“18px 10px”,color:”#ffffff”,fontSize:15,fontWeight:700,cursor:locked?“default”:“pointer”,transition:“all .2s”,lineHeight:1.3,whiteSpace:“pre-line”}}>{opt}</button>;
+})}
+</div>
+);
+}
+function ElimPuzzle({ puzzle, onResult }) {
+const [chosen,setChosen]=useState(null);
+function tap(i){ if(chosen!==null)return; setChosen(i); setTimeout(()=>onResult(i===puzzle.answer),600); }
+const items = puzzle.items || [];
+return (
+<div>
+<p style={{color:”#aaa”,fontSize:12,marginBottom:10}}>Tap your answer</p>
+<div style={{display:“flex”,flexWrap:“wrap”,gap:9}}>
+{items.map((item,i)=>{
+let bg=“rgba(255,255,255,.08)”,border=“1px solid rgba(255,255,255,.13)”;
+if(chosen!==null){ if(i===puzzle.answer){bg=“rgba(16,185,129,.3)”;border=“2px solid #10b981”;} else if(i===chosen){bg=“rgba(239,68,68,.25)”;border=“2px solid #ef4444”;} }
+return <button key={i} onClick={()=>tap(i)} style={{background:bg,border,borderRadius:13,padding:“14px 16px”,color:”#ffffff”,fontSize:15,fontWeight:700,cursor:“pointer”,transition:“all .2s”,flex:“1 1 auto”,minWidth:72}}>{item}</button>;
+})}
+</div>
+</div>
+);
+}
+
+// ── LOADING SCREEN ────────────────────────────────────────────
+function LoadingPuzzles({ world, difficulty }) {
+const w = world;
+const d = DIFFICULTIES.find(x=>x.id===difficulty);
+return (
+<div style={{minHeight:“100vh”,background:w.bg,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:32,textAlign:“center”}}>
+<div style={{fontSize:56,marginBottom:16}}>{w.emoji}</div>
+<div style={{fontSize:20,fontWeight:800,color:”#ffffff”,marginBottom:8}}>{w.name}</div>
+<div style={{fontSize:14,color:d.color,fontWeight:700,marginBottom:32}}>{d.emoji} {d.label} Mode</div>
+<div style={{display:“flex”,gap:8,justifyContent:“center”,marginBottom:20}}>
+{[0,1,2].map(i=>(
+<div key={i} style={{width:10,height:10,borderRadius:“50%”,background:w.light,animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite`}}/>
+))}
+</div>
+<div style={{color:”#aaa”,fontSize:14}}>Generating your puzzles…</div>
+<style>{`@keyframes pulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}`}</style>
+</div>
+);
+}
+
+// ── PLAY SCREEN ───────────────────────────────────────────────
+function PlayScreen({ world, difficulty, puzzles, onDone, onBack }) {
+const w=world;
+const d=DIFFICULTIES.find(x=>x.id===difficulty);
+const [idx,setIdx]=useState(0);
+const [phase,setPhase]=useState(“play”);
+const [lastOk,setLastOk]=useState(null);
+const [answers,setAnswers]=useState([]);
+const [score,setScore]=useState(0);
+const [hintShown,setHintShown]=useState(false);
+const puzzle=puzzles[idx];
+
+function handleResult(ok){
+setLastOk(ok);setPhase(“feedback”);
+if(ok)setScore(s=>s+1);
+setAnswers(a=>[…a,ok]);
+}
+function next(){
+if(idx<puzzles.length-1){setIdx(i=>i+1);setPhase(“play”);setLastOk(null);setHintShown(false);}
+else{ const fs=score+(lastOk?1:0); onDone(fs); }
+}
+function retry(){setPhase(“play”);setLastOk(null);}
+
+return (
+<div style={{minHeight:“100vh”,background:w.bg,display:“flex”,flexDirection:“column”}}>
+<div style={{display:“flex”,alignItems:“center”,gap:10,padding:“12px 14px”,borderBottom:“1px solid rgba(255,255,255,.08)”}}>
+<button onClick={onBack} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:11,color:“white”,width:36,height:36,fontSize:16,cursor:“pointer”}}>←</button>
+<div style={{flex:1}}>
+<div style={{fontSize:12,fontWeight:700,color:”#ccc”}}>{w.emoji} {w.name}</div>
+<div style={{fontSize:11,color:d.color,fontWeight:600}}>{d.emoji} {d.label}</div>
+</div>
+<Dots total={puzzles.length} current={idx} answers={answers}/>
+</div>
+
+```
+  <div style={{flex:1,overflowY:"auto",padding:"16px 14px 28px"}}>
+    <div style={{display:"inline-block",background:`${d.color}22`,border:`1px solid ${d.color}66`,borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:700,color:d.color,marginBottom:14}}>
+      Puzzle {idx+1} of {puzzles.length}
+    </div>
+    <div style={{fontSize:16,fontWeight:700,lineHeight:1.6,marginBottom:18,whiteSpace:"pre-line",color:"#ffffff"}}>{puzzle.q}</div>
+
+    {phase==="play"&&(
+      <>
+        {puzzle.type==="tap"  &&<TapPuzzle  key={idx} puzzle={puzzle} onResult={handleResult}/>}
+        {puzzle.type==="elim" &&<ElimPuzzle key={idx} puzzle={puzzle} onResult={handleResult}/>}
+        {!hintShown
+          ?<button onClick={()=>setHintShown(true)} style={{marginTop:14,background:"none",border:"1px dashed rgba(255,255,255,.2)",borderRadius:12,color:"#999",padding:"9px 14px",fontSize:12,cursor:"pointer",width:"100%"}}>💡 Show hint</button>
+          :<div style={{marginTop:12,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",borderRadius:13,padding:"11px 14px",fontSize:13,color:"#fcd34d",lineHeight:1.5}}>💡 {puzzle.hint}</div>
+        }
+      </>
+    )}
+
+    {phase==="feedback"&&(
+      <div>
+        <div style={{background:lastOk?"rgba(16,185,129,.15)":"rgba(239,68,68,.12)",border:`1.5px solid ${lastOk?"#10b981":"#ef4444"}`,borderRadius:17,padding:18,marginBottom:14}}>
+          <div style={{fontSize:26,marginBottom:6}}>{lastOk?"✅":"❌"}</div>
+          <div style={{fontWeight:800,fontSize:17,marginBottom:8,color:"#ffffff"}}>{lastOk?"Correct!":"Not quite…"}</div>
+          <div style={{fontSize:14,color:"#ffffff",lineHeight:1.6}}>{puzzle.explain}</div>
+        </div>
+        {lastOk
+          ?<button onClick={next} style={{width:"100%",padding:"14px",borderRadius:16,background:`linear-gradient(135deg,${w.color},${w.light})`,color:"#ffffff",fontWeight:800,fontSize:15,border:"none",cursor:"pointer"}}>{idx<puzzles.length-1?"Next Puzzle →":"See Results 🎯"}</button>
+          :<button onClick={retry} style={{width:"100%",padding:"14px",borderRadius:16,background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",color:"white",fontWeight:800,fontSize:15,cursor:"pointer"}}>Try Again 🔄</button>
+        }
+      </div>
+    )}
+  </div>
+</div>
+```
+
+);
+}
+
+// ── RESULT ────────────────────────────────────────────────────
+function ResultScreen({ world, difficulty, score, total, xpGained, onPlayAgain, onBack }) {
+const w=world, d=DIFFICULTIES.find(x=>x.id===difficulty);
+const pct=Math.round((score/total)*100);
+const msg = pct===100?“Perfect! 🏆”:pct>=66?“Well done! 🎉”:pct>=33?“Good effort! 💪”:“Keep practising! 🔄”;
+return (
+<div style={{minHeight:“100vh”,background:w.bg,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:24,textAlign:“center”}}>
+<div style={{fontSize:56,marginBottom:10}}>{pct===100?“🏆”:pct>=66?“🎉”:“💪”}</div>
+<div style={{fontSize:22,fontWeight:900,marginBottom:6,color:”#ffffff”}}>{msg}</div>
+<div style={{color:”#ccc”,fontSize:14,marginBottom:8}}>{score}/{total} correct</div>
+<div style={{color:d.color,fontSize:13,fontWeight:700,marginBottom:24}}>{d.emoji} {d.label} · {w.name}</div>
+<div style={{background:“rgba(255,255,255,.07)”,borderRadius:20,padding:22,marginBottom:20,width:“100%”,maxWidth:300}}>
+<div style={{display:“flex”,justifyContent:“center”,gap:4,marginBottom:10}}>
+{Array.from({length:total}).map((_,i)=><span key={i} style={{fontSize:28,filter:i<score?“none”:“grayscale(1) opacity(.25)”}}>⭐</span>)}
+</div>
+<div style={{fontSize:28,fontWeight:900,color:w.light}}>+{xpGained} XP</div>
+</div>
+<button onClick={onPlayAgain} style={{width:“100%”,maxWidth:300,padding:“15px”,borderRadius:16,background:`linear-gradient(135deg,${w.color},${w.light})`,color:”#ffffff”,fontWeight:800,fontSize:15,border:“none”,cursor:“pointer”,marginBottom:10}}>
+🔄 New Questions
+</button>
+<button onClick={onBack} style={{background:“none”,border:“none”,color:”#888”,fontSize:13,cursor:“pointer”}}>Back to Map</button>
+</div>
+);
+}
+
+// ── DIFFICULTY PICKER ─────────────────────────────────────────
+function DifficultyPicker({ world, onSelect, onBack }) {
+const w=world;
+return (
+<div style={{minHeight:“100vh”,background:w.bg,display:“flex”,flexDirection:“column”}}>
+<div style={{display:“flex”,alignItems:“center”,gap:10,padding:“13px 15px”,borderBottom:“1px solid rgba(255,255,255,.08)”}}>
+<button onClick={onBack} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:11,color:“white”,width:37,height:37,fontSize:17,cursor:“pointer”}}>←</button>
+<div style={{fontSize:20}}>{w.emoji}</div>
+<div style={{fontWeight:800,fontSize:16,color:”#ffffff”}}>{w.name}</div>
+</div>
+<div style={{flex:1,display:“flex”,flexDirection:“column”,justifyContent:“center”,padding:“24px 20px”}}>
+<div style={{fontSize:14,color:”#aaa”,marginBottom:24,textAlign:“center”}}>Choose your difficulty</div>
+{DIFFICULTIES.map(d=>(
+<button key={d.id} onClick={()=>onSelect(d.id)} style={{width:“100%”,background:“rgba(255,255,255,.06)”,border:`1.5px solid ${d.color}55`,borderRadius:20,padding:“20px 22px”,marginBottom:14,display:“flex”,alignItems:“center”,gap:16,cursor:“pointer”,textAlign:“left”,transition:“transform .15s”}}
+onTouchStart={e=>e.currentTarget.style.transform=“scale(.97)”}
+onTouchEnd={e=>e.currentTarget.style.transform=“scale(1)”}
+>
+<div style={{fontSize:36,width:56,height:56,background:`${d.color}22`,border:`1.5px solid ${d.color}55`,borderRadius:16,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0}}>{d.emoji}</div>
+<div style={{flex:1}}>
+<div style={{fontWeight:800,fontSize:18,color:”#ffffff”,marginBottom:3}}>{d.label}</div>
+<div style={{fontSize:13,color:”#aaa”}}>{d.desc}</div>
+</div>
+<div style={{fontSize:22,color:d.color}}>›</div>
+</button>
+))}
+<div style={{textAlign:“center”,fontSize:12,color:”#555”,marginTop:8}}>
+New questions are generated every time ✨
+</div>
+</div>
+</div>
+);
+}
+
+// ── WORLD MAP ─────────────────────────────────────────────────
+function WorldMap({ profile, onSelect, onLeaderboard, onSwitchProfile }) {
+const { name, avatar, xp } = profile;
+return (
+<div style={{minHeight:“100vh”,background:“linear-gradient(180deg,#0d0d1f,#0a0a18)”}}>
+<div style={{padding:“16px 16px 12px”,borderBottom:“1px solid rgba(255,255,255,.07)”}}>
+<div style={{display:“flex”,alignItems:“center”,gap:10,marginBottom:10}}>
+<button onClick={onSwitchProfile} style={{fontSize:28,width:46,height:46,background:“rgba(124,58,237,.2)”,border:“1.5px solid rgba(124,58,237,.4)”,borderRadius:13,cursor:“pointer”,flexShrink:0}}>{avatar}</button>
+<div>
+<div style={{fontSize:11,color:”#666”}}>Playing as</div>
+<div style={{fontSize:17,fontWeight:900,color:“white”}}>{name}</div>
+</div>
+<div style={{marginLeft:“auto”,display:“flex”,flexDirection:“column”,alignItems:“flex-end”,gap:5}}>
+<div style={{fontSize:18,fontWeight:900,color:”#fcd34d”}}>{xp} XP</div>
+<button onClick={onLeaderboard} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:9,color:”#bbb”,padding:“4px 10px”,fontSize:12,cursor:“pointer”}}>🏆 Leaderboard</button>
+</div>
+</div>
+<XPBar xp={xp}/>
+</div>
+<div style={{padding:“14px 14px 30px”}}>
+<div style={{fontSize:11,color:”#555”,marginBottom:12,fontWeight:600,textTransform:“uppercase”,letterSpacing:”.07em”}}>Choose a World</div>
+{WORLDS.map(w=>(
+<button key={w.id} onClick={()=>onSelect(w.id)} style={{width:“100%”,background:w.bg,border:`1.5px solid ${w.color}55`,borderRadius:20,padding:“15px 16px”,marginBottom:10,display:“flex”,alignItems:“center”,gap:12,cursor:“pointer”,textAlign:“left”}}>
+<div style={{width:50,height:50,borderRadius:14,background:`${w.color}33`,border:`1.5px solid ${w.color}66`,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:26,flexShrink:0}}>{w.emoji}</div>
+<div style={{flex:1}}>
+<div style={{fontWeight:800,fontSize:15,color:“white”,marginBottom:3}}>{w.name}</div>
+<div style={{fontSize:12,color:”#888”}}>{w.desc}</div>
+<div style={{display:“flex”,gap:6,marginTop:6}}>
+{DIFFICULTIES.map(d=><span key={d.id} style={{fontSize:11,color:d.color,fontWeight:600}}>{d.emoji}{d.label}</span>)}
+</div>
+</div>
+<div style={{fontSize:22,color:w.light}}>›</div>
+</button>
+))}
+</div>
+</div>
+);
+}
+
+// ── PROFILE PICKER ────────────────────────────────────────────
+function ProfilePicker({ profiles, onSelect, onNew }) {
+return (
+<div style={{minHeight:“100vh”,background:“linear-gradient(180deg,#0d0d1f,#0a0a18)”,display:“flex”,flexDirection:“column”,alignItems:“center”,padding:“40px 24px 24px”}}>
+<div style={{fontSize:54,marginBottom:8}}>🧠</div>
+<div style={{fontSize:26,fontWeight:900,marginBottom:4,background:“linear-gradient(90deg,#a78bfa,#67e8f9)”,WebkitBackgroundClip:“text”,WebkitTextFillColor:“transparent”}}>ThinkQuest</div>
+<div style={{color:”#555”,fontSize:13,marginBottom:36}}>Who’s playing?</div>
+<div style={{width:“100%”,maxWidth:340}}>
+{profiles.map(p=>(
+<button key={p.id} onClick={()=>onSelect(p.id)} style={{width:“100%”,background:“rgba(255,255,255,.06)”,border:“1.5px solid rgba(255,255,255,.1)”,borderRadius:18,padding:“14px 18px”,marginBottom:12,display:“flex”,alignItems:“center”,gap:14,cursor:“pointer”,textAlign:“left”}}>
+<div style={{fontSize:32,width:48,height:48,background:“rgba(124,58,237,.2)”,borderRadius:13,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0}}>{p.avatar}</div>
+<div style={{flex:1}}>
+<div style={{fontWeight:800,fontSize:16,color:“white”,marginBottom:2}}>{p.name}</div>
+<div style={{fontSize:12,color:”#888”}}>{p.xp} XP · {p.gamesPlayed||0} games played</div>
+</div>
+<div style={{fontSize:20,color:”#a78bfa”}}>›</div>
+</button>
+))}
+<button onClick={onNew} style={{width:“100%”,background:“rgba(124,58,237,.1)”,border:“1.5px dashed rgba(124,58,237,.4)”,borderRadius:18,padding:“14px 18px”,display:“flex”,alignItems:“center”,justifyContent:“center”,gap:10,cursor:“pointer”,color:”#a78bfa”,fontWeight:700,fontSize:15,marginTop:4}}>
+<span style={{fontSize:22}}>＋</span> Add New Player
+</button>
+</div>
+</div>
+);
+}
+
+function NewProfile({ onSave, onCancel }) {
+const [name,setName]=useState(””);
+const [avatar,setAvatar]=useState(AVATARS[0]);
+const [err,setErr]=useState(””);
+function save(){
+const n=name.trim();
+if(n.length<2){setErr(“Name needs at least 2 characters”);return;}
+onSave({id:Date.now().toString(),name:n,avatar,xp:0,gamesPlayed:0});
+}
+return (
+<div style={{minHeight:“100vh”,background:“linear-gradient(180deg,#0d0d1f,#0a0a18)”,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:28}}>
+<div style={{width:“100%”,maxWidth:320}}>
+{onCancel&&<button onClick={onCancel} style={{background:“none”,border:“none”,color:”#777”,fontSize:13,cursor:“pointer”,marginBottom:20}}>← Back</button>}
+<div style={{fontSize:20,fontWeight:900,color:“white”,marginBottom:20}}>New Explorer</div>
+<div style={{fontSize:13,fontWeight:700,color:”#bbb”,marginBottom:10}}>Choose your avatar</div>
+<div style={{display:“flex”,gap:10,flexWrap:“wrap”,marginBottom:20}}>
+{AVATARS.map(a=>(
+<button key={a} onClick={()=>setAvatar(a)} style={{fontSize:28,width:50,height:50,borderRadius:13,background:avatar===a?“rgba(124,58,237,.4)”:“rgba(255,255,255,.07)”,border:avatar===a?“2px solid #a78bfa”:“1.5px solid rgba(255,255,255,.1)”,cursor:“pointer”}}>
+{a}
+</button>
+))}
+</div>
+<div style={{fontSize:13,fontWeight:700,color:”#bbb”,marginBottom:8}}>Your name</div>
+<input value={name} onChange={e=>{setName(e.target.value);setErr(””);}} onKeyDown={e=>e.key===“Enter”&&save()} placeholder=“Enter your name…” maxLength={20}
+style={{width:“100%”,padding:“14px”,borderRadius:14,background:“rgba(255,255,255,.09)”,border:“1.5px solid rgba(255,255,255,.2)”,color:“white”,fontSize:16,fontWeight:700,outline:“none”,marginBottom:err?8:16,boxSizing:“border-box”}}/>
+{err&&<div style={{color:”#f87171”,fontSize:13,marginBottom:12}}>⚠️ {err}</div>}
+<button onClick={save} style={{width:“100%”,padding:“15px”,borderRadius:15,background:“linear-gradient(135deg,#7c3aed,#06b6d4)”,color:“white”,fontWeight:800,fontSize:16,border:“none”,cursor:“pointer”}}>
+Create Profile →
+</button>
+</div>
+</div>
+);
+}
+
+// ── LEADERBOARD ───────────────────────────────────────────────
+function Leaderboard({ currentName, onBack }) {
+const [lb,setLb]=useState([]);
+useEffect(()=>{ loadFrom(“tq_lb3”,true).then(d=>setLb(d||[])); },[]);
+const sorted=[…lb].sort((a,b)=>b.xp-a.xp).slice(0,10);
+const medals=[“🥇”,“🥈”,“🥉”];
+return (
+<div style={{minHeight:“100vh”,background:”#0d0d1f”}}>
+<div style={{display:“flex”,alignItems:“center”,gap:12,padding:“13px 16px”,borderBottom:“1px solid rgba(255,255,255,.08)”}}>
+<button onClick={onBack} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:11,color:“white”,width:36,height:36,fontSize:16,cursor:“pointer”}}>←</button>
+<div style={{fontWeight:800,fontSize:17,color:“white”}}>🏆 Leaderboard</div>
+</div>
+<div style={{padding:15}}>
+{sorted.length===0
+?<div style={{textAlign:“center”,color:”#555”,padding:40}}>No scores yet — be the first! 🌟</div>
+:sorted.map((e,i)=>(
+<div key={i} style={{background:e.name===currentName?“rgba(124,58,237,.2)”:“rgba(255,255,255,.04)”,border:`1px solid ${e.name===currentName?"rgba(124,58,237,.4)":"rgba(255,255,255,.08)"}`,borderRadius:15,padding:“12px 15px”,marginBottom:8,display:“flex”,alignItems:“center”,gap:12}}>
+<div style={{fontSize:20,width:26}}>{medals[i]||`${i+1}`}</div>
+<div style={{fontSize:24,width:34}}>{e.avatar||“🧒”}</div>
+<div style={{flex:1}}>
+<div style={{fontWeight:800,fontSize:14,color:e.name===currentName?”#a78bfa”:”#ffffff”}}>{e.name}{e.name===currentName?” (you)”:””}</div>
+<div style={{fontSize:11,color:”#888”}}>{e.gamesPlayed||0} games played</div>
+</div>
+<div style={{textAlign:“right”}}>
+<div style={{fontWeight:900,fontSize:19,color:”#fcd34d”}}>{e.xp}</div>
+<div style={{fontSize:11,color:”#666”}}>XP</div>
+</div>
+</div>
+))
+}
+<div style={{textAlign:“center”,fontSize:11,color:”#444”,marginTop:8}}>Shared across all players</div>
+</div>
+</div>
+);
+}
+
+// ── APP ───────────────────────────────────────────────────────
+export default function App() {
+const [screen,setScreen]=useState(“loading”);
+const [profiles,setProfiles]=useState([]);
+const [activeId,setActiveId]=useState(null);
+const [worldId,setWorldId]=useState(null);
+const [difficulty,setDifficulty]=useState(null);
+const [puzzles,setPuzzles]=useState([]);
+const [resultScore,setResultScore]=useState(0);
+
+const profile=profiles.find(p=>p.id===activeId)||null;
+const world=WORLDS.find(w=>w.id===worldId)||null;
+
+useEffect(()=>{
+loadFrom(“tq_profiles2”).then(d=>{
+if(d&&d.length>0){setProfiles(d);setScreen(“picker”);}
+else setScreen(“newprofile”);
+});
+},[]);
+
+async function persistProfiles(updated) {
+setProfiles(updated);
+await saveTo(“tq_profiles2”,updated);
+const lb=updated.map(p=>({name:p.name,avatar:p.avatar,xp:p.xp,gamesPlayed:p.gamesPlayed||0}));
+await saveTo(“tq_lb3”,lb,true);
+}
+
+function handleNewProfile(prof){
+const updated=[…profiles,prof];
+persistProfiles(updated);
+setActiveId(prof.id);
+setScreen(“map”);
+}
+
+async function startGame(wId, diff) {
+setWorldId(wId);
+setDifficulty(diff);
+setScreen(“loading”);
+const generated = await generateQuestions(wId, diff);
+if(generated && generated.length>0){
+setPuzzles(generated);
+setScreen(“play”);
+} else {
+// fallback if API fails
+setPuzzles([
+{type:“tap”,q:“Which number is missing?\n2, 4, ___, 8, 10”,options:[“5”,“6”,“7”,“3”],answer:1,hint:“What is the gap between numbers?”,explain:“The sequence goes +2 each time. 4+2=6.”},
+{type:“elim”,q:“Which word doesn’t belong?”,items:[“Cat”,“Dog”,“Rose”,“Bird”],answer:2,hint:“Three are animals. Which one isn’t?”,explain:“Rose is a plant, not an animal. Cat, Dog, and Bird are all animals.”},
+{type:“tap”,q:“If all birds can fly, and Tweety is a bird,\ncan Tweety fly?”,options:[“Yes”,“No”,“Maybe”,“Not enough info”],answer:0,hint:“Apply the rule to Tweety directly.”,explain:“The rule says ALL birds can fly. Tweety is a bird. So yes, Tweety can fly.”},
+]);
+setScreen(“play”);
+}
+}
+
+function handleDone(score){
+const diff=DIFFICULTIES.find(x=>x.id===difficulty);
+const xpGained=score*(diff.id===“hard”?15:diff.id===“medium”?10:5);
+const updated=profiles.map(p=>{
+if(p.id!==activeId)return p;
+return{…p,xp:p.xp+xpGained,gamesPlayed:(p.gamesPlayed||0)+1};
+});
+persistProfiles(updated);
+setResultScore(score);
+setScreen(“result”);
+}
+
+if(screen===“loading”&&!world) return <div style={{minHeight:“100vh”,background:”#0d0d1f”,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:40}}>🧠</div>;
+if(screen===“loading”&&world) return <LoadingPuzzles world={world} difficulty={difficulty}/>;
+if(screen===“picker”) return <ProfilePicker profiles={profiles} onSelect={id=>{setActiveId(id);setScreen(“map”);}} onNew={()=>setScreen(“newprofile”)}/>;
+if(screen===“newprofile”) return <NewProfile onSave={handleNewProfile} onCancel={profiles.length>0?()=>setScreen(“picker”):null}/>;
+if(screen===“map”&&profile) return <WorldMap profile={profile} onSelect={id=>{setWorldId(id);setScreen(“difficulty”);}} onLeaderboard={()=>setScreen(“leaderboard”)} onSwitchProfile={()=>setScreen(“picker”)}/>;
+if(screen===“difficulty”&&world) return <DifficultyPicker world={world} onSelect={diff=>startGame(worldId,diff)} onBack={()=>setScreen(“map”)}/>;
+if(screen===“play”&&world&&puzzles.length>0) return <PlayScreen world={world} difficulty={difficulty} puzzles={puzzles} onDone={handleDone} onBack={()=>setScreen(“map”)}/>;
+if(screen===“result”&&world) return <ResultScreen world={world} difficulty={difficulty} score={resultScore} total={puzzles.length} xpGained={resultScore*(difficulty===“hard”?15:difficulty===“medium”?10:5)} onPlayAgain={()=>startGame(worldId,difficulty)} onBack={()=>setScreen(“map”)}/>;
+if(screen===“leaderboard”&&profile) return <Leaderboard currentName={profile.name} onBack={()=>setScreen(“map”)}/>;
+return null;
+}
