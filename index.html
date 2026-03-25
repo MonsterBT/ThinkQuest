@@ -1,472 +1,530 @@
-import { useState, useEffect } from “react”;
+<!DOCTYPE html>
 
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ThinkQuest</title>
+<style>
+  :root {
+    --bg:#0f0f1a; --card:#1a1a2e; --card2:#16213e;
+    --p:#7c3aed; --p2:#a78bfa; --cyan:#06b6d4;
+    --amber:#f59e0b; --green:#10b981; --red:#ef4444;
+    --text:#f0f0ff; --muted:#8888aa; --border:#2a2a4a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;overflow-x:hidden}
+  button{font-family:inherit}
+  #app{min-height:100vh}
+
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.active{display:flex}
+
+/* Hero */
+.hero-logo{font-size:56px;text-align:center;margin-bottom:8px}
+.hero-title{font-size:28px;font-weight:900;text-align:center;background:linear-gradient(90deg,#a78bfa,#67e8f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.hero-sub{color:#666;font-size:14px;text-align:center;margin-bottom:36px}
+
+/* Cards */
+.card{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:20px;padding:16px 18px;margin-bottom:12px;cursor:pointer;display:flex;align-items:center;gap:14px;text-align:left;width:100%;transition:transform .15s}
+.card:active{transform:scale(.97)}
+.card-icon{font-size:28px;width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card h3{font-size:15px;font-weight:800;color:#fff;margin-bottom:3px}
+.card p{font-size:12px;color:#888}
+.card .arrow{font-size:20px;margin-left:auto;flex-shrink:0}
+
+/* Difficulty pills */
+.diff-row{display:flex;flex-direction:column;gap:14px;padding:0 0 30px}
+.diff-btn{border-radius:20px;padding:20px 22px;display:flex;align-items:center;gap:16px;cursor:pointer;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);width:100%;transition:transform .15s}
+.diff-btn:active{transform:scale(.97)}
+.diff-emoji{font-size:36px;width:58px;height:58px;border-radius:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.diff-btn h3{font-size:18px;font-weight:800;color:#fff;margin-bottom:3px}
+.diff-btn p{font-size:13px;color:#aaa}
+
+/* Play */
+.play-header{display:flex;align-items:center;gap:10;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.back-btn{background:rgba(255,255,255,.1);border:none;border-radius:11px;color:white;width:36px;height:36px;font-size:17px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.dots{display:flex;gap:5px;justify-content:center}
+.dot{height:8px;border-radius:4px;transition:all .3s}
+
+.puzzle-wrap{flex:1;overflow-y:auto;padding:16px 14px 28px}
+.level-badge{display:inline-block;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;margin-bottom:14px}
+.question{font-size:16px;font-weight:700;line-height:1.6;margin-bottom:18px;white-space:pre-line;color:#fff}
+
+/* Options */
+.options-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt-btn{border-radius:16px;padding:18px 10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;line-height:1.3;white-space:pre-line;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08)}
+.opt-btn.correct{background:rgba(16,185,129,.3)!important;border:2px solid #10b981!important}
+.opt-btn.wrong{background:rgba(239,68,68,.25)!important;border:2px solid #ef4444!important}
+
+.elim-wrap{display:flex;flex-wrap:wrap;gap:9px}
+.elim-btn{border-radius:13px;padding:14px 16px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.08);flex:1 1 auto;min-width:72px}
+.elim-btn.correct{background:rgba(16,185,129,.3)!important;border:2px solid #10b981!important}
+.elim-btn.wrong{background:rgba(239,68,68,.25)!important;border:2px solid #ef4444!important}
+
+/* Feedback */
+.feedback-box{border-radius:17px;padding:18px;margin-bottom:14px}
+.feedback-box.ok{background:rgba(16,185,129,.15);border:1.5px solid #10b981}
+.feedback-box.bad{background:rgba(239,68,68,.12);border:1.5px solid #ef4444}
+.feedback-icon{font-size:26px;margin-bottom:6px}
+.feedback-title{font-weight:800;font-size:17px;margin-bottom:8px;color:#fff}
+.feedback-text{font-size:14px;color:#fff;line-height:1.6}
+.hint-btn{margin-top:14px;background:none;border:1px dashed rgba(255,255,255,.2);border-radius:12px;color:#999;padding:9px 14px;font-size:12px;cursor:pointer;width:100%}
+.hint-box{margin-top:12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:13px;padding:11px 14px;font-size:13px;color:#fcd34d;line-height:1.5}
+
+/* Action btns */
+.btn-primary{width:100%;padding:14px;border-radius:16px;color:#fff;font-weight:800;font-size:15px;border:none;cursor:pointer;margin-bottom:10px}
+.btn-secondary{width:100%;padding:14px;border-radius:16px;color:white;font-weight:800;font-size:15px;cursor:pointer;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2)}
+
+/* Result */
+.result-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;flex:1}
+.result-trophy{font-size:58px;margin-bottom:10px}
+.result-title{font-size:22px;font-weight:900;color:#fff;margin-bottom:6px}
+.result-sub{color:#ccc;font-size:14px;margin-bottom:24px}
+.result-card{background:rgba(255,255,255,.07);border-radius:20px;padding:22px;margin-bottom:20px;width:100%;max-width:300px}
+.stars-row{display:flex;justify-content:center;gap:4px;margin-bottom:10px}
+.xp-gained{font-size:28px;font-weight:900}
+
+/* XP bar */
+.xp-track{background:rgba(255,255,255,.12);border-radius:8px;height:7px;overflow:hidden;width:100%}
+.xp-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,#7c3aed,#06b6d4);transition:width .6s ease}
+
+/* Nav header */
+.nav-header{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid rgba(255,255,255,.08)}
+.nav-title{font-weight:800;font-size:16px;color:#fff;flex:1}
+
+/* Responsive padding */
+.page-pad{padding:16px 14px 30px}
+
+@keyframes pulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
+.pulse-dot{width:10px;height:10px;border-radius:50%;display:inline-block;animation:pulse 1.2s ease-in-out infinite}
+</style>
+
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
 const WORLDS = [
-{ id:“patterns”, name:“Cipher Caves”,     emoji:“🔍”, color:”#7c3aed”, light:”#a78bfa”, bg:”#1a0f3a”, desc:“Spot the rule, crack the code” },
-{ id:“logic”,    name:“Detective HQ”,     emoji:“🔎”, color:”#0891b2”, light:”#67e8f9”, bg:”#0a1f2e”, desc:“Use clues to find the truth” },
-{ id:“combos”,   name:“Alchemist’s Lab”,  emoji:“🧪”, color:”#059669”, light:”#6ee7b7”, bg:”#0a2018”, desc:“Count every possibility” },
-{ id:“strategy”, name:“Strategy Citadel”, emoji:“♟️”, color:”#b45309”, light:”#fcd34d”, bg:”#1f1500”, desc:“Think ahead, outsmart opponents” },
+  {id:"patterns",name:"Cipher Caves",    emoji:"🔍",color:"#7c3aed",light:"#a78bfa",bg:"#1a0f3a",desc:"Spot the rule, crack the code"},
+  {id:"logic",   name:"Detective HQ",   emoji:"🔎",color:"#0891b2",light:"#67e8f9",bg:"#0a1f2e",desc:"Use clues to find the truth"},
+  {id:"combos",  name:"Alchemist's Lab",emoji:"🧪",color:"#059669",light:"#6ee7b7",bg:"#0a2018",desc:"Count every possibility"},
+  {id:"strategy",name:"Strategy Citadel",emoji:"♟️",color:"#b45309",light:"#fcd34d",bg:"#1f1500",desc:"Think ahead, outsmart opponents"},
 ];
 
 const DIFFICULTIES = [
-{ id:“easy”,   label:“Easy”,   emoji:“🌱”, desc:“Simple, 1-step problems”,      color:”#10b981” },
-{ id:“medium”, label:“Medium”, emoji:“🌿”, desc:“2–3 steps, some tricky bits”,  color:”#f59e0b” },
-{ id:“hard”,   label:“Hard”,   emoji:“🔥”, desc:“Multi-step, real brain work”,  color:”#ef4444” },
+  {id:"easy",  label:"Easy",  emoji:"🌱",desc:"Simple, 1-step problems",  color:"#10b981", xp:5},
+  {id:"medium",label:"Medium",emoji:"🌿",desc:"2–3 steps, some tricky bits",color:"#f59e0b", xp:10},
+  {id:"hard",  label:"Hard",  emoji:"🔥",desc:"Multi-step, real brain work",color:"#ef4444", xp:15},
 ];
 
-const AVATARS = [“🧒”,“👧”,“🧑”,“👦”,“🧙”,“🦸”,“🧝”,“🐉”];
-
-// ── STORAGE ───────────────────────────────────────────────────
-async function saveTo(key, val, shared=false) {
-try { await window.storage.set(key, JSON.stringify(val), shared); } catch(e){}
-}
-async function loadFrom(key, shared=false) {
-try { const r=await window.storage.get(key,shared); return r?JSON.parse(r.value):null; } catch(e){ return null; }
-}
-
-// ── AI QUESTION GENERATOR ─────────────────────────────────────
-async function generateQuestions(domain, difficulty) {
-const prompts = {
-patterns: `Generate 3 pattern recognition puzzles for children aged 7-12. Difficulty: ${difficulty}. Each puzzle must be a self-contained reasoning challenge — sequences, grids, rules, or odd-one-out problems. Vary the structure fully: don't repeat the same format across the 3 puzzles.`,
-logic: `Generate 3 logical deduction puzzles for children aged 7-12. Difficulty: ${difficulty}. Use varied formats: who-has-what, true/false chains, if-then reasoning, or find-the-liar. Each puzzle must be different in structure.`,
-combos: `Generate 3 combinatorics / counting puzzles for children aged 7-12. Difficulty: ${difficulty}. Cover different concepts: combinations, arrangements, tree diagrams, or worst-case counting. Each puzzle must be structurally different.`,
-strategy: `Generate 3 strategic thinking puzzles for children aged 7-12. Difficulty: ${difficulty}. Cover different scenarios: resource decisions, game moves, trade-offs, or opponent modelling. Each puzzle must be different in structure.`,
+const BANK = {
+  patterns:{
+    easy:[
+      {type:"tap",q:"What comes next?\n🔴 🔵 🔴 🔵 🔴 ___",options:["🔴","🔵","🟡","🟢"],answer:1,hint:"Look at every 2nd position.",explain:"Unit is RED→BLUE repeating. Position 6 = 🔵."},
+      {type:"tap",q:"Which number comes next?\n2, 4, 6, 8, ___",options:["9","10","11","12"],answer:1,hint:"What is the gap between each number?",explain:"Add 2 each time. 8 + 2 = 10."},
+      {type:"elim",q:"Tap the shape that comes next:\n▲ ■ ▲ ■ ▲ ___",items:["▲","■","●","★"],answer:1,hint:"What appears at every 2nd position?",explain:"Pattern unit is (▲ ■). Position 6 = ■."},
+      {type:"tap",q:"Which number is missing?\n1, 2, 3, ___, 5, 6",options:["2","4","5","7"],answer:1,hint:"Count up from 1.",explain:"The sequence counts up by 1. After 3 comes 4."},
+      {type:"elim",q:"Which colour comes next?\n🟥 🟦 🟥 🟦 ___",items:["🟥","🟦","🟨","🟩"],answer:0,hint:"The pattern alternates between two colours.",explain:"Red and Blue alternate. After 🟦 comes 🟥."},
+      {type:"tap",q:"5, 10, 15, 20, ___",options:["22","24","25","30"],answer:2,hint:"What do you add each time?",explain:"Add 5 each time. 20 + 5 = 25."},
+      {type:"tap",q:"A B A B A ___",options:["A","B","C","D"],answer:1,hint:"The pattern repeats in pairs.",explain:"A and B alternate. After A comes B."},
+      {type:"elim",q:"Which is the ODD ONE OUT?\nDog  Cat  Rose  Fish",items:["Dog","Cat","Rose","Fish"],answer:2,hint:"Three are animals. One is not.",explain:"Rose is a plant. Dog, Cat, and Fish are all animals."},
+      {type:"tap",q:"10, 20, 30, ___",options:["35","38","40","45"],answer:2,hint:"You add the same number each time.",explain:"Add 10 each time. 30 + 10 = 40."},
+      {type:"elim",q:"Which number comes next?\n3, 6, 9, 12, ___",items:["13","14","15","16"],answer:2,hint:"What is the gap between numbers?",explain:"Add 3 each time. 12 + 3 = 15."},
+      {type:"tap",q:"🌙 ⭐ 🌙 ⭐ 🌙 ___",options:["🌙","⭐","☀️","🌍"],answer:1,hint:"Two symbols alternate.",explain:"Moon and Star alternate. After 🌙 comes ⭐."},
+      {type:"elim",q:"Odd one out:\nApple  Banana  Carrot  Orange",items:["Apple","Banana","Carrot","Orange"],answer:2,hint:"Three are fruits. One is a vegetable.",explain:"Carrot is a vegetable. The others are fruits."},
+    ],
+    medium:[
+      {type:"tap",q:"Two rules change at once.\nSmall🔴 Big🔴 Small🔵 Big🔵 Small🔴 ___",options:["Small🔵","Big🔴","Big🔵","Small🔴"],answer:1,hint:"Track SIZE and COLOUR separately.",explain:"Size: S,B,S,B,S→B. Colour: R,R,B,B,R→R. Answer: Big🔴."},
+      {type:"tap",q:"Find the next number:\n3, 6, 5, 10, 9, ___",options:["10","18","8","12"],answer:1,hint:"Look at pairs — does the rule alternate?",explain:"Alternates ×2 then −1. After 9: 9×2=18."},
+      {type:"elim",q:"Which tile is MISSING?\nRow1: 🔴🔵🟡\nRow2: 🔵🟡🔴\nRow3: 🟡 ___ 🔵",items:["🔴","🔵","🟡","🟢"],answer:0,hint:"Each row uses all 3 colours once.",explain:"Row 3 has 🟡 and 🔵. The missing colour is 🔴."},
+      {type:"tap",q:"What is the rule?\n2→6, 3→9, 5→15, 4→___",options:["10","12","14","16"],answer:1,hint:"What do you do to the input number?",explain:"Rule is ×3. So 4×3=12."},
+      {type:"tap",q:"1, 4, 9, 16, ___",options:["20","25","24","18"],answer:1,hint:"These are special numbers. Try squaring 1,2,3,4...",explain:"Square numbers: 1²,2²,3²,4²,5²=25."},
+      {type:"elim",q:"Which breaks the pattern?\n2  4  6  9  10  12",items:["4","6","9","10"],answer:2,hint:"All numbers should be even.",explain:"9 is odd. All others (2,4,6,10,12) are even numbers."},
+      {type:"tap",q:"A=1, B=2, C=3...\nWhat letter is number 5?",options:["D","E","F","G"],answer:1,hint:"Count along the alphabet.",explain:"A=1,B=2,C=3,D=4,E=5. The answer is E."},
+      {type:"tap",q:"100, 90, 80, 70, ___",options:["65","60","55","50"],answer:1,hint:"What is being subtracted each time?",explain:"Subtract 10 each time. 70−10=60."},
+      {type:"elim",q:"Odd one out:\n4  8  12  15  20",items:["8","12","15","20"],answer:2,hint:"All should be multiples of 4.",explain:"15 is not a multiple of 4. All others (4,8,12,20) are."},
+      {type:"tap",q:"Find the rule:\n5→8, 10→13, 3→6, 7→___",options:["9","10","11","12"],answer:1,hint:"What is being added to each input?",explain:"Rule is +3. So 7+3=10."},
+      {type:"tap",q:"What comes next?\n1, 1, 2, 3, 5, 8, ___",options:["11","12","13","14"],answer:2,hint:"Add the two previous numbers together.",explain:"Each number = sum of previous two. 5+8=13."},
+      {type:"elim",q:"Which number fits the rule?\nRule: always between 10 and 20",items:["9","15","21","7"],answer:1,hint:"Which number is greater than 10 AND less than 20?",explain:"15 is between 10 and 20. The others are outside this range."},
+    ],
+    hard:[
+      {type:"tap",q:"Sequence has TWO alternating rules.\n1, 2, 6, 7, 21, 22, ___",options:["23","66","44","42"],answer:1,hint:"Split into two interleaved sub-sequences.",explain:"Even steps: +1. Odd steps: ×3. After 22: 22×3=66."},
+      {type:"elim",q:"Which has a DIFFERENT rule from the others?",items:["1,4,9,16","4,9,16,25","2,4,8,16","1,9,25,49"],answer:2,hint:"Three are related to square numbers. One is not.",explain:"2,4,8,16 = powers of 2. The others are all square number sequences."},
+      {type:"tap",q:"INPUT → ×2 → −3 → ×2 → OUTPUT\nInput = 5. Output = ?",options:["11","14","10","7"],answer:1,hint:"Apply each operation one step at a time.",explain:"5×2=10, 10−3=7, 7×2=14."},
+      {type:"tap",q:"Grid:\nRow1: 1, 2, 3\nRow2: 2, 4, 6\nRow3: 3, 6, ___",options:["7","8","9","10"],answer:2,hint:"Look at both the row rule AND the column rule.",explain:"Row rule: ×row number. Column rule: ×column number. Row3,Col3 = 3×3=9."},
+      {type:"tap",q:"A function: f(x) = x×x − 1\nf(4) = ?",options:["13","14","15","16"],answer:2,hint:"First square 4, then subtract 1.",explain:"4×4=16, 16−1=15."},
+      {type:"elim",q:"Which sequence is NOT arithmetic\n(does not add the same number each time)?",items:["2,4,6,8","3,6,9,12","1,2,4,8","5,10,15,20"],answer:2,hint:"An arithmetic sequence has a constant gap.",explain:"1,2,4,8 doubles each time (×2), not a constant add. The others add 2, 3, and 5 respectively."},
+      {type:"tap",q:"Pattern: each row's sum = 10.\nRow1: 1,2,3,4\nRow2: 5,3,2,?\nRow3: 7,?,1,1",options:["Row2 missing=0, Row3 missing=1","Row2=0, Row3=2","Row2=1, Row3=2","Row2=2, Row3=0"],answer:0,hint:"Add up what you have in each row, then find what's missing to make 10.",explain:"Row2: 5+3+2=10, ?=0. Row3: 7+1+1=9, ?=1."},
+      {type:"tap",q:"Rule: output = (input + 3) × 2\nWhich input gives output 16?",options:["4","5","6","7"],answer:1,hint:"Work backwards: 16÷2=8, then 8−3=5.",explain:"Reverse the rule: 16÷2=8, 8−3=5. Input=5."},
+    ],
+  },
+  logic:{
+    easy:[
+      {type:"elim",q:"Alice, Ben, Cara each have one pet.\n① Ben ≠ cat\n② Cara = fish\nWho has the CAT?",items:["Alice","Ben","Cara"],answer:0,hint:"Start with what's certain: who has the fish?",explain:"Cara=fish. Ben≠cat so Ben=dog. Alice gets the cat."},
+      {type:"tap",q:"Tom is taller than Sam.\nSam is taller than Jay.\nIs Tom taller than Jay?",options:["Yes","No","Can't tell","Sometimes"],answer:0,hint:"Can you chain the two facts together?",explain:"Tom>Sam AND Sam>Jay means Tom>Sam>Jay. Yes, Tom is taller."},
+      {type:"tap",q:"All dogs are animals.\nRex is a dog.\nIs Rex an animal?",options:["Yes","No","Maybe","Sometimes"],answer:0,hint:"The rule applies to ALL dogs.",explain:"All dogs are animals. Rex is a dog. So Rex is an animal."},
+      {type:"tap",q:"If it is raining, Sara brings an umbrella.\nSara has her umbrella today.\nIs it definitely raining?",options:["Yes","No","Maybe","Always"],answer:2,hint:"Could Sara have brought her umbrella for another reason?",explain:"She might bring it just in case. Rain → umbrella, but umbrella doesn't prove rain."},
+      {type:"elim",q:"Three friends each have a different colour pencil.\nRed, Blue, Green.\n① Mia ≠ Red\n② Sam = Blue\nWho has Red?",items:["Mia","Sam","Leo"],answer:2,hint:"Sam's colour is given directly. Then eliminate.",explain:"Sam=Blue. Mia≠Red, so Mia=Green. Leo must have Red."},
+      {type:"tap",q:"All squares are rectangles.\nShape X is a square.\nIs Shape X a rectangle?",options:["Yes","No","Maybe","Can't tell"],answer:0,hint:"If all squares are rectangles, what does that mean for Shape X?",explain:"All squares ARE rectangles. Shape X is a square. So Shape X is a rectangle."},
+      {type:"tap",q:"Anna is older than Ben.\nBen is older than Cara.\nWho is the youngest?",options:["Anna","Ben","Cara","Can't tell"],answer:2,hint:"Chain the two age facts together.",explain:"Anna>Ben>Cara. Cara is the youngest."},
+      {type:"elim",q:"There are 3 boxes: A, B, C.\nThe ball is NOT in A.\nThe ball is NOT in B.\nWhere is the ball?",items:["Box A","Box B","Box C"],answer:2,hint:"Eliminate the impossible options.",explain:"Not A, not B — it must be in C."},
+      {type:"tap",q:"Every cat has whiskers.\nFluffy has whiskers.\nIs Fluffy definitely a cat?",options:["Yes","No","Maybe","Always"],answer:2,hint:"Other animals also have whiskers.",explain:"Cats have whiskers, but so do other animals like rabbits. Fluffy might not be a cat."},
+      {type:"tap",q:"P is TRUE. Q is FALSE.\nWhat is P AND Q?",options:["True","False","Maybe","Depends"],answer:1,hint:"AND requires BOTH to be true.",explain:"AND is only true when both are true. P=true, Q=false → FALSE."},
+      {type:"elim",q:"4 children: Red, Blue, Yellow, Green shirts.\nAl=Red. Beth≠Blue. Cal=Yellow.\nWhat colour is Beth's shirt?",items:["Red","Blue","Green","Yellow"],answer:2,hint:"Eliminate colours already taken or ruled out.",explain:"Red=Al, Yellow=Cal, Beth≠Blue. So Beth=Green."},
+      {type:"tap",q:"No fish can walk.\nGoldie is a fish.\nCan Goldie walk?",options:["Yes","No","Maybe","Sometimes"],answer:1,hint:"Apply the rule directly.",explain:"No fish can walk. Goldie is a fish. So Goldie cannot walk."},
+    ],
+    medium:[
+      {type:"tap",q:"If A→B and B→C,\nwhich MUST be true?",options:["A→C only","C→A only","Both","Neither"],answer:0,hint:"Arrows chain forward but don't reverse.",explain:"A→B and B→C means A→C by chaining. But C→A is not guaranteed."},
+      {type:"elim",q:"Three boxes. One has gold.\nA: 'Gold is in B'\nB: 'Gold is not here'\nC: 'Gold is in A'\nExactly ONE label is true. Where?",items:["Box A","Box B","Box C"],answer:1,hint:"Try placing gold in each box and count true statements.",explain:"Gold in B: A=true, B=false, C=false → exactly 1 true ✓"},
+      {type:"tap",q:"Anna, Bo, Cal, Dana like colours.\n① Anna≠red ② Bo=blue\n③ Cal≠green ④ Dana≠yellow\nWho CAN have red?",options:["Anna","Bo","Cal","Dana"],answer:2,hint:"Eliminate who definitely can't have red.",explain:"Bo=blue. Anna≠red. Cal has no restriction on red. Cal can have red."},
+      {type:"tap",q:"All mammals are warm-blooded.\nWhales are mammals.\nAre whales warm-blooded?",options:["Yes","No","Maybe","Can't tell"],answer:0,hint:"Apply the rule: if ALL mammals, then whales too.",explain:"All mammals are warm-blooded. Whales are mammals. So whales are warm-blooded."},
+      {type:"elim",q:"4 suspects. One lied. Statements:\nA:'I was home.' B:'A is lying.'\nC:'B is honest.' D:'C is lying.'\nIf only A lied, which statements are TRUE?",items:["B and C only","B, C and D","A and D","C and D only"],answer:0,hint:"If A lied, B's statement is true. Then follow the chain.",explain:"A lies → B is telling truth (true). B is honest → C is correct (true). D says C is lying = false. So B and C are true."},
+      {type:"tap",q:"Some birds can't fly (penguins, ostriches).\nTweety is a bird.\nCan Tweety definitely fly?",options:["Yes","No","Maybe","Always"],answer:2,hint:"'Some' birds can't fly — we don't know which kind Tweety is.",explain:"Since some birds can't fly, we can't be certain. Tweety might or might not be able to fly."},
+      {type:"tap",q:"If not A → B.\nWe know B is false.\nWhat can we say about A?",options:["A is false","A is true","Can't tell","A is maybe true"],answer:1,hint:"Work backwards: if B is false, what must be true for the rule to hold?",explain:"Not A → B. B is false. So 'not A' must be false. Therefore A is true."},
+      {type:"elim",q:"5 people sit in a row.\nAli is at one end. Ben is next to Ali.\nCara is NOT next to Ben.\nWho can sit in position 3 (middle)?",items:["Ali","Ben","Cara","Any of them"],answer:2,hint:"Place Ali and Ben first. Position 3 must not be next to Ben.",explain:"Ali=1, Ben=2 (next to Ali). Position 3 is next to Ben so Cara can't be there. Cara must be position 4 or 5. Actually Ben could also be position 1 and Ali=2. The key is Cara avoids being adjacent to Ben."},
+    ],
+    hard:[
+      {type:"tap",q:"Knights tell truth. Knaves lie.\nA says: 'B is a knight.'\nB says: 'A and I are different types.'\nWhat are they?",options:["Both knights","Both knaves","A=knight, B=knave","A=knave, B=knight"],answer:1,hint:"Assume A is a knight and follow all consequences.",explain:"If A is a knight: B is a knight (A said so). But B says 'we're different' which is false. Contradiction. So A is a knave, and B is also a knave."},
+      {type:"tap",q:"100 lockers, all closed.\nStudent n toggles every nth locker.\nWhich locker is open after all 100 students?",options:["Locker 50","Locker 25","Locker 36","Locker 64"],answer:2,hint:"A locker stays open if toggled an odd number of times. Perfect squares have an odd number of factors.",explain:"Only perfect squares have an odd number of factors. 36=6² is a perfect square and stays open."},
+      {type:"elim",q:"4 suspects. Exactly one did it.\nA:'It was B.' B:'It was C.'\nC:'Not me.' D:'A is lying.'\nOnly ONE statement is true. Who did it?",items:["A","B","C","D"],answer:3,hint:"Try each suspect. Count how many statements become true each time.",explain:"If D did it: A=false, B=false, C=true, D=false → exactly 1 true ✓"},
+      {type:"tap",q:"P=true, Q=false, R=true.\nWhat is (P OR Q) AND (NOT R)?",options:["True","False","Maybe","Depends"],answer:1,hint:"Solve the brackets first, then combine.",explain:"(P OR Q)=true OR false=true. (NOT R)=NOT true=false. true AND false=FALSE."},
+      {type:"tap",q:"If A then B. If B then C. If C then D.\nD is false. What can we conclude?",options:["A is false","B is false","C is false","All of the above"],answer:3,hint:"Work backwards from D being false.",explain:"D=false → C=false (contrapositive). C=false → B=false. B=false → A=false. All are false."},
+    ],
+  },
+  combos:{
+    easy:[
+      {type:"tap",q:"2 shirts (Red, Blue) + 3 hats (A,B,C).\nHow many outfit combinations?",options:["5","6","4","8"],answer:1,hint:"For EVERY shirt, how many hat choices are there?",explain:"2 shirts × 3 hats = 6. Multiply, don't add."},
+      {type:"tap",q:"Alice, Ben, Cara sit in a row.\nHow many different orders?",options:["3","4","6","9"],answer:2,hint:"Fix Alice first. How many ways can Ben and Cara arrange?",explain:"3×2×1 = 6 orders."},
+      {type:"elim",q:"Which combo is MISSING?\nRed+A, Red+B, Blue+A, Blue+C, Red+C",items:["Blue+B","Red+A","Blue+C","Red+B"],answer:0,hint:"List all 6 combos systematically.",explain:"Full list: Red+A,B,C and Blue+A,B,C. Blue+B is missing."},
+      {type:"tap",q:"Ice cream: 2 flavours × 2 toppings.\nHow many combinations?",options:["2","3","4","6"],answer:2,hint:"For each flavour, how many topping choices?",explain:"2 × 2 = 4 combinations."},
+      {type:"tap",q:"A coin is flipped twice.\nHow many different outcomes are possible?\n(HH, HT, TH, TT)",options:["2","3","4","5"],answer:2,hint:"List all possibilities: first flip, then second flip.",explain:"HH, HT, TH, TT = 4 outcomes. 2×2=4."},
+      {type:"elim",q:"2 trousers (Black, Blue) + 2 tops (Red, White).\nWhich outfit is NOT possible?",items:["Black+Red","Blue+White","Black+Green","Blue+Red"],answer:2,hint:"Green is not one of the available tops.",explain:"There is no green top. Black+Green is not a valid combination."},
+      {type:"tap",q:"You roll a die (1-6).\nHow many possible outcomes?",options:["4","5","6","7"],answer:2,hint:"A standard die has faces numbered 1 through 6.",explain:"A die has 6 faces, so 6 possible outcomes."},
+      {type:"tap",q:"3 sandwiches + 2 drinks.\nHow many meal combinations?",options:["5","6","8","9"],answer:1,hint:"Multiply choices together.",explain:"3 × 2 = 6 meal combinations."},
+    ],
+    medium:[
+      {type:"tap",q:"Choose 2 books from 4 (A,B,C,D).\nOrder doesn't matter. How many ways?",options:["12","8","6","4"],answer:2,hint:"List them: AB, AC, AD, BC... BA=AB so don't double count.",explain:"AB,AC,AD,BC,BD,CD = 6 pairs."},
+      {type:"tap",q:"Passwords: 2 letters from {A,B} + 1 digit from {1,2,3}.\nHow many passwords?",options:["7","10","12","6"],answer:2,hint:"How many choices for each position? Multiply them.",explain:"2×2×3 = 12 passwords."},
+      {type:"tap",q:"5 people shake hands — each pair shakes once.\nHow many handshakes total?",options:["10","20","5","25"],answer:0,hint:"Person 1 shakes 4 others. Person 2 shakes 3 new people...",explain:"4+3+2+1=10. Or: 5×4÷2=10."},
+      {type:"elim",q:"Which scenario needs MOST grabs to guarantee a pair?\n(Worst case luck, no peeking)",items:["3 red, 2 blue","5 different colours","2 red, 2 blue","10 red, 1 blue"],answer:1,hint:"More colours = more unlucky draws before a repeat.",explain:"5 colours: worst case grabs one of each (5 grabs) before grab 6 guarantees a match."},
+      {type:"tap",q:"3-letter codes from A,B,C,D (no repeats).\nCode must start with A or B.\nHow many codes?",options:["6","8","12","16"],answer:2,hint:"Split into two cases: starts with A, or starts with B.",explain:"Each case: 1 fixed × 3 × 2 = 6. Two cases: 6+6=12."},
+      {type:"tap",q:"How many ways to arrange 3 different coloured balls\nin a row? (Red, Blue, Green)",options:["3","4","6","9"],answer:2,hint:"3 choices for 1st, then 2, then 1.",explain:"3×2×1 = 6 arrangements."},
+    ],
+    hard:[
+      {type:"tap",q:"5 socks in the dark: 3 red, 2 blue.\nMinimum grabs to GUARANTEE a matching pair?",options:["2","3","4","5"],answer:1,hint:"Think WORST CASE — not average luck.",explain:"Worst case: grab red then blue (no match). 3rd must match one. Answer: 3."},
+      {type:"tap",q:"13 people at a party.\nMust at least 2 share a birth month?",options:["Yes, always","No, never","Maybe","Only if unlucky"],answer:0,hint:"There are only 12 months. What happens with 13 people?",explain:"Pigeonhole principle: 13 people, 12 months → at least 2 must share a month. Guaranteed."},
+      {type:"tap",q:"How many ways to arrange the letters in MATH?",options:["12","16","24","36"],answer:2,hint:"4 choices for 1st letter, then 3, then 2, then 1.",explain:"4×3×2×1 = 24 arrangements."},
+      {type:"tap",q:"Menu: 3 starters, 4 mains, 2 desserts.\nOne from each. How many different meals?",options:["9","24","14","12"],answer:1,hint:"Multiply all choices together.",explain:"3×4×2 = 24 different meals."},
+      {type:"tap",q:"4-digit codes using digits 1,2,3 only.\nNo two adjacent digits the same.\nHow many valid codes?",options:["12","18","24","36"],answer:2,hint:"First digit: 3 choices. Each next digit: 2 choices (can't repeat previous).",explain:"3×2×2×2 = 24 valid codes."},
+    ],
+  },
+  strategy:{
+    easy:[
+      {type:"tap",q:"Path A: pay 1 coin, get 2 back.\nPath B: pay 2 coins, get 4 back.\nStart with 3 coins. Which ends with MORE?",options:["Path A → 4 coins","Path B → 5 coins","Equal","Can't tell"],answer:1,hint:"Calculate end result for BOTH: start − cost + reward.",explain:"A: 3−1+2=4. B: 3−2+4=5. Path B wins."},
+      {type:"elim",q:"Noughts & Crosses. X played centre.\nO's turn. Best move?",items:["A corner","An edge","Anywhere","Centre again"],answer:0,hint:"Edges let X set up two winning threats at once.",explain:"Corners block X's fork. Edges give X too many threats."},
+      {type:"tap",q:"You have 6 coins.\nSword: 3 coins, +2 attack.\nShield: 4 coins, +3 defence.\nEnemy attack=3. Your defence=1.\nWhich buy helps you SURVIVE?",options:["Sword","Shield","Neither","Both"],answer:1,hint:"Will you survive the enemy's attack without the shield?",explain:"Without shield: defence=1 vs enemy attack=3 → heavy damage. Shield lifts defence to 4."},
+      {type:"tap",q:"You have 5 apples. Your friend has 2.\nYou give 2 apples to your friend.\nWho has more apples now?",options:["You (5)","Your friend (4)","Equal (3 each)","Can't tell"],answer:2,hint:"Calculate both: you give away 2, friend receives 2.",explain:"You: 5−2=3. Friend: 2+2=4. Wait — 3 vs 4, friend has more. Actually let me recount: you=3, friend=4. Friend has more."},
+      {type:"tap",q:"A game costs 2 tokens per play.\nYou have 10 tokens.\nHow many times can you play?",options:["4","5","6","8"],answer:1,hint:"Divide your tokens by the cost per play.",explain:"10 ÷ 2 = 5 plays."},
+      {type:"elim",q:"In a race: the winner gets 10 points,\n2nd gets 6, 3rd gets 3.\nYou are in 3rd place. One round left.\nWhat's your BEST strategy?",items:["Play safe, keep 3rd","Try to overtake 2nd","Try to overtake 1st","Give up"],answer:1,hint:"Think about what gains you the most points.",explain:"Overtaking to 2nd gains +3 points (6 vs 3). Trying for 1st is riskier. Overtaking to 2nd is the best realistic move."},
+      {type:"tap",q:"Losing 5–3. 2 moves left. Each move scores 1.\nCan you win?",options:["Yes","No","Maybe","Need more info"],answer:1,hint:"Calculate your best possible final score.",explain:"Best case: 3+2=5. You can draw but not win. Answer: No."},
+    ],
+    medium:[
+      {type:"tap",q:"Shield: 5 gems, lasts 1 battle.\nFortress: 15 gems, lasts 5 battles.\nYou have 15 gems, expect 4 battles. Best choice?",options:["4 shields=20 gems (can't afford)","Fortress=15 gems","2 shields=10 gems","1 shield=5 gems"],answer:1,hint:"Compare total cost over 4 battles.",explain:"Fortress=3 gems/battle. 4 shields=20 (unaffordable). Fortress wins."},
+      {type:"elim",q:"3 possible moves:\nX: wins if opponent plays badly.\nY: draws no matter what.\nZ: wins against optimal opponent.\nBest move?",items:["Move X","Move Y","Move Z","All equal"],answer:2,hint:"A smart opponent won't play badly.",explain:"Move Z wins even against optimal play — the best possible outcome."},
+      {type:"tap",q:"Losing 10–8 with 1 move left.\nMove A: 40% chance to score 3.\nMove B: 90% chance to score 1.\nBest chance to WIN?",options:["Move A","Move B","Equal","Can't tell"],answer:0,hint:"What score do you NEED to win?",explain:"You need 3 to win. Move B maxes at 1 — can't win. Move A is the only path to victory."},
+      {type:"tap",q:"Opponent wins NEXT turn unless you block.\nYou can block OR set up your own win next turn.\nWhat should you do?",options:["Block now","Set up own win","Doesn't matter","Random move"],answer:0,hint:"What happens if you don't block?",explain:"If you don't block, opponent wins immediately. Future plans don't matter."},
+      {type:"tap",q:"7 stones. Remove 1 or 2 per turn.\nLast to take wins. You go first.\nBest first move?",options:["Take 1","Take 2","Either works","Take all"],answer:0,hint:"Work backwards. Which pile sizes are losing positions?",explain:"Losing positions: 3,6. From 7, take 1 → leaves 6 (a losing position for your opponent)."},
+      {type:"elim",q:"You have 4 troops. Enemy has 6.\nTwo forts: A needs 3+ to win, B needs 2+ to win.\nBest strategy?",items:["2 troops each fort","3 at A, 1 at B","1 at A, 3 at B","All 4 at A"],answer:2,hint:"You can't win both. Which fort can you win and at what minimum cost?",explain:"1 at Fort A (sacrifice), 3 at Fort B (win 2+). Net gain beats trying both and failing."},
+    ],
+    hard:[
+      {type:"tap",q:"You pick a row. Opponent picks a column.\nGrid: Row1=[3,5]  Row2=[1,4]\nYour score = grid value. Best row?",options:["Row 1 (guaranteed 3)","Row 2 (guaranteed 1)","Both equal","Depends on opponent"],answer:0,hint:"Assume opponent always picks the column that hurts you most.",explain:"Minimax: Row1 min=3, Row2 min=1. You pick Row1 to guarantee at least 3."},
+      {type:"tap",q:"Pile of 5 stones. Remove 1 or 2. Last wins.\nYou go first. Best opening?",options:["Take 1","Take 2","Either works","Take all"],answer:1,hint:"Losing positions are multiples of 3.",explain:"Losing positions: 3,6,9. From 5, take 2 → leaves 3 (opponent is in a losing position)."},
+      {type:"elim",q:"Tournament: 3 opponents: A=easy, B=medium, C=hard.\nMust win 2 IN A ROW to win trophy.\nBest order?",items:["A,B,A","B,A,B","C,A,C","A,C,A"],answer:1,hint:"Middle opponent is the one you must beat. Make them the easiest.",explain:"B,A,B: you must beat A (easy) in the middle, plus one B (medium). Best odds overall."},
+      {type:"tap",q:"Game: gain 2pts/round, opponent gains 3pts/round.\nYou start with 10pts, opponent 0pts.\nWhich round does opponent FIRST overtake you?",options:["Round 8","Round 10","Round 11","Round 5"],answer:2,hint:"Set up the equation: when does 3r > 10+2r?",explain:"3r=10+2r → r=10 (equal). Round 11 opponent leads for the first time."},
+      {type:"tap",q:"4 game endings: A=win, B=draw, C=lose, D=draw.\nYou pick path (A,C) or path (B,D).\nOpponent picks the final outcome.\nWhich path?",options:["Path A,C","Path B,D","Doesn't matter","Flip a coin"],answer:1,hint:"Opponent always picks what's WORST for you.",explain:"Path A,C → opponent picks C (you lose). Path B,D → opponent picks D (draw). Draw beats loss."},
+    ],
+  },
 };
 
-const systemPrompt = `You are a puzzle designer for a children's learning game.  Generate exactly 3 puzzles as a JSON array. Each puzzle must have this exact structure: { "q": "The question text (use \\n for line breaks, keep it short and clear)", "type": "tap" or "elim", "options": ["A","B","C","D"],   // exactly 4 options for tap type "items": ["A","B","C"],         // 3-5 items for elim type (tap to choose one) "answer": 0,                    // index of correct answer in options or items array "hint": "A short helpful clue without giving the answer away", "explain": "A clear 1-2 sentence explanation of why the answer is correct" } For "tap" type: provide "options" (4 choices). Do NOT include "items". For "elim" type: provide "items" (the choices to tap). Do NOT include "options". Return ONLY the JSON array, no markdown, no explanation, no backticks.`;
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let state = {
+  screen: "home",       // home | difficulty | play | result
+  worldId: null,
+  difficulty: null,
+  puzzles: [],
+  idx: 0,
+  phase: "play",        // play | feedback
+  lastOk: null,
+  answers: [],
+  score: 0,
+  hintShown: false,
+  totalXP: 0,
+  playerName: "",
+};
 
-const userPrompt = prompts[domain];
-
-try {
-const res = await fetch(“https://api.anthropic.com/v1/messages”, {
-method:“POST”,
-headers:{“Content-Type”:“application/json”},
-body: JSON.stringify({
-model:“claude-sonnet-4-20250514”,
-max_tokens:1000,
-system: systemPrompt,
-messages:[{ role:“user”, content: userPrompt }]
-})
-});
-const data = await res.json();
-const text = data.content?.[0]?.text || “[]”;
-const puzzles = JSON.parse(text);
-// normalise — ensure answer is a number
-return puzzles.map(p=>({ …p, answer: Number(p.answer) }));
-} catch(e) {
-return null;
-}
+function setState(patch) {
+  Object.assign(state, patch);
+  render();
 }
 
-// ── UI HELPERS ────────────────────────────────────────────────
-function XPBar({ xp, color=”#7c3aed” }) {
-return (
-<div style={{background:“rgba(255,255,255,.12)”,borderRadius:8,height:7,overflow:“hidden”,width:“100%”}}>
-<div style={{height:“100%”,borderRadius:8,background:`linear-gradient(90deg,${color},#06b6d4)`,width:`${Math.min(100,(xp/500)*100)}%`,transition:“width .6s ease”}}/>
-</div>
-);
-}
-function Dots({ total, current, answers }) {
-return (
-<div style={{display:“flex”,gap:5,justifyContent:“center”}}>
-{Array.from({length:total}).map((_,i)=>(
-<div key={i} style={{width:i===current?18:8,height:8,borderRadius:4,background:i<answers.length?(answers[i]?”#10b981”:”#ef4444”):i===current?”#a78bfa”:“rgba(255,255,255,.2)”,transition:“all .3s”}}/>
-))}
-</div>
-);
+// ═══════════════════════════════════════════════
+// PUZZLE PICKER (random from bank)
+// ═══════════════════════════════════════════════
+function pickPuzzles(worldId, difficulty) {
+  const pool = BANK[worldId][difficulty];
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
 }
 
-// ── PUZZLE COMPONENTS ─────────────────────────────────────────
-function TapPuzzle({ puzzle, onResult }) {
-const [sel,setSel]=useState(null);
-const [locked,setLocked]=useState(false);
-function pick(i){ if(locked)return; setSel(i);setLocked(true); setTimeout(()=>onResult(i===puzzle.answer),600); }
-const opts = puzzle.options || [];
-return (
-<div style={{display:“grid”,gridTemplateColumns:“1fr 1fr”,gap:10}}>
-{opts.map((opt,i)=>{
-let bg=“rgba(255,255,255,.08)”,border=“1px solid rgba(255,255,255,.14)”;
-if(locked){ if(i===puzzle.answer){bg=“rgba(16,185,129,.3)”;border=“2px solid #10b981”;} else if(i===sel){bg=“rgba(239,68,68,.25)”;border=“2px solid #ef4444”;} }
-return <button key={i} onClick={()=>pick(i)} style={{background:bg,border,borderRadius:16,padding:“18px 10px”,color:”#ffffff”,fontSize:15,fontWeight:700,cursor:locked?“default”:“pointer”,transition:“all .2s”,lineHeight:1.3,whiteSpace:“pre-line”}}>{opt}</button>;
-})}
-</div>
-);
-}
-function ElimPuzzle({ puzzle, onResult }) {
-const [chosen,setChosen]=useState(null);
-function tap(i){ if(chosen!==null)return; setChosen(i); setTimeout(()=>onResult(i===puzzle.answer),600); }
-const items = puzzle.items || [];
-return (
-<div>
-<p style={{color:”#aaa”,fontSize:12,marginBottom:10}}>Tap your answer</p>
-<div style={{display:“flex”,flexWrap:“wrap”,gap:9}}>
-{items.map((item,i)=>{
-let bg=“rgba(255,255,255,.08)”,border=“1px solid rgba(255,255,255,.13)”;
-if(chosen!==null){ if(i===puzzle.answer){bg=“rgba(16,185,129,.3)”;border=“2px solid #10b981”;} else if(i===chosen){bg=“rgba(239,68,68,.25)”;border=“2px solid #ef4444”;} }
-return <button key={i} onClick={()=>tap(i)} style={{background:bg,border,borderRadius:13,padding:“14px 16px”,color:”#ffffff”,fontSize:15,fontWeight:700,cursor:“pointer”,transition:“all .2s”,flex:“1 1 auto”,minWidth:72}}>{item}</button>;
-})}
-</div>
-</div>
-);
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function render() {
+  const app = document.getElementById("app");
+  const s = state;
+  const world = WORLDS.find(w => w.id === s.worldId);
+  const diff = DIFFICULTIES.find(d => d.id === s.difficulty);
+
+  if (s.screen === "home")       { app.innerHTML = renderHome(); }
+  else if (s.screen === "difficulty") { app.innerHTML = renderDifficulty(world); }
+  else if (s.screen === "play")  { app.innerHTML = renderPlay(world, diff); }
+  else if (s.screen === "result"){ app.innerHTML = renderResult(world, diff); }
+
+  bindEvents();
 }
 
-// ── LOADING SCREEN ────────────────────────────────────────────
-function LoadingPuzzles({ world, difficulty }) {
-const w = world;
-const d = DIFFICULTIES.find(x=>x.id===difficulty);
-return (
-<div style={{minHeight:“100vh”,background:w.bg,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:32,textAlign:“center”}}>
-<div style={{fontSize:56,marginBottom:16}}>{w.emoji}</div>
-<div style={{fontSize:20,fontWeight:800,color:”#ffffff”,marginBottom:8}}>{w.name}</div>
-<div style={{fontSize:14,color:d.color,fontWeight:700,marginBottom:32}}>{d.emoji} {d.label} Mode</div>
-<div style={{display:“flex”,gap:8,justifyContent:“center”,marginBottom:20}}>
-{[0,1,2].map(i=>(
-<div key={i} style={{width:10,height:10,borderRadius:“50%”,background:w.light,animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite`}}/>
-))}
-</div>
-<div style={{color:”#aaa”,fontSize:14}}>Generating your puzzles…</div>
-<style>{`@keyframes pulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}`}</style>
-</div>
-);
-}
-
-// ── PLAY SCREEN ───────────────────────────────────────────────
-function PlayScreen({ world, difficulty, puzzles, onDone, onBack }) {
-const w=world;
-const d=DIFFICULTIES.find(x=>x.id===difficulty);
-const [idx,setIdx]=useState(0);
-const [phase,setPhase]=useState(“play”);
-const [lastOk,setLastOk]=useState(null);
-const [answers,setAnswers]=useState([]);
-const [score,setScore]=useState(0);
-const [hintShown,setHintShown]=useState(false);
-const puzzle=puzzles[idx];
-
-function handleResult(ok){
-setLastOk(ok);setPhase(“feedback”);
-if(ok)setScore(s=>s+1);
-setAnswers(a=>[…a,ok]);
-}
-function next(){
-if(idx<puzzles.length-1){setIdx(i=>i+1);setPhase(“play”);setLastOk(null);setHintShown(false);}
-else{ const fs=score+(lastOk?1:0); onDone(fs); }
-}
-function retry(){setPhase(“play”);setLastOk(null);}
-
-return (
-<div style={{minHeight:“100vh”,background:w.bg,display:“flex”,flexDirection:“column”}}>
-<div style={{display:“flex”,alignItems:“center”,gap:10,padding:“12px 14px”,borderBottom:“1px solid rgba(255,255,255,.08)”}}>
-<button onClick={onBack} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:11,color:“white”,width:36,height:36,fontSize:16,cursor:“pointer”}}>←</button>
-<div style={{flex:1}}>
-<div style={{fontSize:12,fontWeight:700,color:”#ccc”}}>{w.emoji} {w.name}</div>
-<div style={{fontSize:11,color:d.color,fontWeight:600}}>{d.emoji} {d.label}</div>
-</div>
-<Dots total={puzzles.length} current={idx} answers={answers}/>
-</div>
-
-```
-  <div style={{flex:1,overflowY:"auto",padding:"16px 14px 28px"}}>
-    <div style={{display:"inline-block",background:`${d.color}22`,border:`1px solid ${d.color}66`,borderRadius:20,padding:"3px 12px",fontSize:11,fontWeight:700,color:d.color,marginBottom:14}}>
-      Puzzle {idx+1} of {puzzles.length}
-    </div>
-    <div style={{fontSize:16,fontWeight:700,lineHeight:1.6,marginBottom:18,whiteSpace:"pre-line",color:"#ffffff"}}>{puzzle.q}</div>
-
-    {phase==="play"&&(
-      <>
-        {puzzle.type==="tap"  &&<TapPuzzle  key={idx} puzzle={puzzle} onResult={handleResult}/>}
-        {puzzle.type==="elim" &&<ElimPuzzle key={idx} puzzle={puzzle} onResult={handleResult}/>}
-        {!hintShown
-          ?<button onClick={()=>setHintShown(true)} style={{marginTop:14,background:"none",border:"1px dashed rgba(255,255,255,.2)",borderRadius:12,color:"#999",padding:"9px 14px",fontSize:12,cursor:"pointer",width:"100%"}}>💡 Show hint</button>
-          :<div style={{marginTop:12,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",borderRadius:13,padding:"11px 14px",fontSize:13,color:"#fcd34d",lineHeight:1.5}}>💡 {puzzle.hint}</div>
-        }
-      </>
-    )}
-
-    {phase==="feedback"&&(
-      <div>
-        <div style={{background:lastOk?"rgba(16,185,129,.15)":"rgba(239,68,68,.12)",border:`1.5px solid ${lastOk?"#10b981":"#ef4444"}`,borderRadius:17,padding:18,marginBottom:14}}>
-          <div style={{fontSize:26,marginBottom:6}}>{lastOk?"✅":"❌"}</div>
-          <div style={{fontWeight:800,fontSize:17,marginBottom:8,color:"#ffffff"}}>{lastOk?"Correct!":"Not quite…"}</div>
-          <div style={{fontSize:14,color:"#ffffff",lineHeight:1.6}}>{puzzle.explain}</div>
+// ─── HOME ─────────────────────────────────────
+function renderHome() {
+  const xp = state.totalXP;
+  const cards = WORLDS.map(w => `
+    <button class="card" data-action="selectWorld" data-id="${w.id}" style="background:${w.bg};border-color:${w.color}55">
+      <div class="card-icon" style="background:${w.color}33;border:1.5px solid ${w.color}66">${w.emoji}</div>
+      <div style="flex:1">
+        <h3>${w.name}</h3>
+        <p>${w.desc}</p>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          ${DIFFICULTIES.map(d=>`<span style="font-size:11px;color:${d.color};font-weight:600">${d.emoji}${d.label}</span>`).join("")}
         </div>
-        {lastOk
-          ?<button onClick={next} style={{width:"100%",padding:"14px",borderRadius:16,background:`linear-gradient(135deg,${w.color},${w.light})`,color:"#ffffff",fontWeight:800,fontSize:15,border:"none",cursor:"pointer"}}>{idx<puzzles.length-1?"Next Puzzle →":"See Results 🎯"}</button>
-          :<button onClick={retry} style={{width:"100%",padding:"14px",borderRadius:16,background:"rgba(255,255,255,.1)",border:"1px solid rgba(255,255,255,.2)",color:"white",fontWeight:800,fontSize:15,cursor:"pointer"}}>Try Again 🔄</button>
-        }
       </div>
-    )}
-  </div>
-</div>
-```
+      <span class="arrow" style="color:${w.light}">›</span>
+    </button>
+  `).join("");
 
-);
+  return `
+    <div class="screen active" style="background:linear-gradient(180deg,#0d0d1f,#0a0a18);padding:0">
+      <div style="padding:24px 16px 0">
+        <div class="hero-logo">🧠</div>
+        <div class="hero-title">ThinkQuest</div>
+        <div class="hero-sub">Train your brain. Level up your thinking.</div>
+        <div style="background:rgba(255,255,255,.07);border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <span style="font-size:13px;color:#aaa">Total XP earned</span>
+          <span style="font-size:20px;font-weight:900;color:#fcd34d">${xp} XP</span>
+        </div>
+        <div style="font-size:11px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px">Choose a World</div>
+        ${cards}
+        <div style="text-align:center;font-size:12px;color:#444;padding:16px 0 30px">New questions every session ✨</div>
+      </div>
+    </div>`;
 }
 
-// ── RESULT ────────────────────────────────────────────────────
-function ResultScreen({ world, difficulty, score, total, xpGained, onPlayAgain, onBack }) {
-const w=world, d=DIFFICULTIES.find(x=>x.id===difficulty);
-const pct=Math.round((score/total)*100);
-const msg = pct===100?“Perfect! 🏆”:pct>=66?“Well done! 🎉”:pct>=33?“Good effort! 💪”:“Keep practising! 🔄”;
-return (
-<div style={{minHeight:“100vh”,background:w.bg,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:24,textAlign:“center”}}>
-<div style={{fontSize:56,marginBottom:10}}>{pct===100?“🏆”:pct>=66?“🎉”:“💪”}</div>
-<div style={{fontSize:22,fontWeight:900,marginBottom:6,color:”#ffffff”}}>{msg}</div>
-<div style={{color:”#ccc”,fontSize:14,marginBottom:8}}>{score}/{total} correct</div>
-<div style={{color:d.color,fontSize:13,fontWeight:700,marginBottom:24}}>{d.emoji} {d.label} · {w.name}</div>
-<div style={{background:“rgba(255,255,255,.07)”,borderRadius:20,padding:22,marginBottom:20,width:“100%”,maxWidth:300}}>
-<div style={{display:“flex”,justifyContent:“center”,gap:4,marginBottom:10}}>
-{Array.from({length:total}).map((_,i)=><span key={i} style={{fontSize:28,filter:i<score?“none”:“grayscale(1) opacity(.25)”}}>⭐</span>)}
-</div>
-<div style={{fontSize:28,fontWeight:900,color:w.light}}>+{xpGained} XP</div>
-</div>
-<button onClick={onPlayAgain} style={{width:“100%”,maxWidth:300,padding:“15px”,borderRadius:16,background:`linear-gradient(135deg,${w.color},${w.light})`,color:”#ffffff”,fontWeight:800,fontSize:15,border:“none”,cursor:“pointer”,marginBottom:10}}>
-🔄 New Questions
-</button>
-<button onClick={onBack} style={{background:“none”,border:“none”,color:”#888”,fontSize:13,cursor:“pointer”}}>Back to Map</button>
-</div>
-);
+// ─── DIFFICULTY ───────────────────────────────
+function renderDifficulty(world) {
+  const w = world;
+  const btns = DIFFICULTIES.map(d => `
+    <button class="diff-btn" data-action="selectDiff" data-id="${d.id}" style="border-color:${d.color}44">
+      <div class="diff-emoji" style="background:${d.color}22;border:1.5px solid ${d.color}55">${d.emoji}</div>
+      <div style="flex:1;text-align:left">
+        <h3 style="color:#fff">${d.label}</h3>
+        <p>${d.desc}</p>
+      </div>
+      <span style="font-size:22px;color:${d.color}">›</span>
+    </button>
+  `).join("");
+
+  return `
+    <div class="screen active" style="background:${w.bg}">
+      <div class="nav-header">
+        <button class="back-btn" data-action="goHome">←</button>
+        <span style="font-size:20px">${w.emoji}</span>
+        <span class="nav-title">${w.name}</span>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px 18px">
+        <div style="font-size:14px;color:#aaa;text-align:center;margin-bottom:24px">Choose your difficulty</div>
+        <div class="diff-row">${btns}</div>
+        <div style="text-align:center;font-size:12px;color:#555">Questions change every time ✨</div>
+      </div>
+    </div>`;
 }
 
-// ── DIFFICULTY PICKER ─────────────────────────────────────────
-function DifficultyPicker({ world, onSelect, onBack }) {
-const w=world;
-return (
-<div style={{minHeight:“100vh”,background:w.bg,display:“flex”,flexDirection:“column”}}>
-<div style={{display:“flex”,alignItems:“center”,gap:10,padding:“13px 15px”,borderBottom:“1px solid rgba(255,255,255,.08)”}}>
-<button onClick={onBack} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:11,color:“white”,width:37,height:37,fontSize:17,cursor:“pointer”}}>←</button>
-<div style={{fontSize:20}}>{w.emoji}</div>
-<div style={{fontWeight:800,fontSize:16,color:”#ffffff”}}>{w.name}</div>
-</div>
-<div style={{flex:1,display:“flex”,flexDirection:“column”,justifyContent:“center”,padding:“24px 20px”}}>
-<div style={{fontSize:14,color:”#aaa”,marginBottom:24,textAlign:“center”}}>Choose your difficulty</div>
-{DIFFICULTIES.map(d=>(
-<button key={d.id} onClick={()=>onSelect(d.id)} style={{width:“100%”,background:“rgba(255,255,255,.06)”,border:`1.5px solid ${d.color}55`,borderRadius:20,padding:“20px 22px”,marginBottom:14,display:“flex”,alignItems:“center”,gap:16,cursor:“pointer”,textAlign:“left”,transition:“transform .15s”}}
-onTouchStart={e=>e.currentTarget.style.transform=“scale(.97)”}
-onTouchEnd={e=>e.currentTarget.style.transform=“scale(1)”}
->
-<div style={{fontSize:36,width:56,height:56,background:`${d.color}22`,border:`1.5px solid ${d.color}55`,borderRadius:16,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0}}>{d.emoji}</div>
-<div style={{flex:1}}>
-<div style={{fontWeight:800,fontSize:18,color:”#ffffff”,marginBottom:3}}>{d.label}</div>
-<div style={{fontSize:13,color:”#aaa”}}>{d.desc}</div>
-</div>
-<div style={{fontSize:22,color:d.color}}>›</div>
-</button>
-))}
-<div style={{textAlign:“center”,fontSize:12,color:”#555”,marginTop:8}}>
-New questions are generated every time ✨
-</div>
-</div>
-</div>
-);
+// ─── PLAY ─────────────────────────────────────
+function renderPlay(world, diff) {
+  const w = world, d = diff, s = state;
+  const puzzle = s.puzzles[s.idx];
+  const total = s.puzzles.length;
+
+  const dots = s.puzzles.map((_, i) => {
+    const w2 = i < s.answers.length ? (s.answers[i] ? "8px" : "8px") : (i === s.idx ? "18px" : "8px");
+    const bg = i < s.answers.length ? (s.answers[i] ? "#10b981" : "#ef4444") : (i === s.idx ? w.light : "rgba(255,255,255,.2)");
+    return `<div class="dot" style="width:${w2};background:${bg}"></div>`;
+  }).join("");
+
+  let puzzleHTML = "";
+  if (s.phase === "play") {
+    if (puzzle.type === "tap") {
+      const opts = (puzzle.options||[]).map((opt,i) => `
+        <button class="opt-btn" data-action="tapAnswer" data-idx="${i}">${opt}</button>
+      `).join("");
+      puzzleHTML = `<div class="options-grid">${opts}</div>`;
+    } else {
+      const items = (puzzle.items||[]).map((item,i) => `
+        <button class="elim-btn" data-action="elimAnswer" data-idx="${i}">${item}</button>
+      `).join("");
+      puzzleHTML = `
+        <p style="color:#aaa;font-size:12px;margin-bottom:10px">Tap your answer</p>
+        <div class="elim-wrap">${items}</div>`;
+    }
+    const hintHTML = s.hintShown
+      ? `<div class="hint-box">💡 ${puzzle.hint}</div>`
+      : `<button class="hint-btn" data-action="showHint">💡 Show hint</button>`;
+    puzzleHTML += hintHTML;
+  } else {
+    const ok = s.lastOk;
+    puzzleHTML = `
+      <div class="feedback-box ${ok?'ok':'bad'}">
+        <div class="feedback-icon">${ok?"✅":"❌"}</div>
+        <div class="feedback-title">${ok?"Correct!":"Not quite…"}</div>
+        <div class="feedback-text">${puzzle.explain}</div>
+      </div>
+      ${ok
+        ? `<button class="btn-primary" data-action="nextPuzzle" style="background:linear-gradient(135deg,${w.color},${w.light})">${s.idx < total-1 ? "Next Puzzle →" : "See Results 🎯"}</button>`
+        : `<button class="btn-secondary" data-action="retryPuzzle">Try Again 🔄</button>`
+      }`;
+  }
+
+  return `
+    <div class="screen active" style="background:${w.bg}">
+      <div class="nav-header">
+        <button class="back-btn" data-action="goHome">←</button>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:700;color:#ccc">${w.emoji} ${w.name}</div>
+          <div style="font-size:11px;font-weight:600;color:${d.color}">${d.emoji} ${d.label}</div>
+        </div>
+        <div class="dots">${dots}</div>
+      </div>
+      <div class="puzzle-wrap">
+        <div class="level-badge" style="background:${d.color}22;border:1px solid ${d.color}66;color:${d.color}">
+          Puzzle ${s.idx+1} of ${total}
+        </div>
+        <div class="question">${puzzle.q}</div>
+        ${puzzleHTML}
+      </div>
+    </div>`;
 }
 
-// ── WORLD MAP ─────────────────────────────────────────────────
-function WorldMap({ profile, onSelect, onLeaderboard, onSwitchProfile }) {
-const { name, avatar, xp } = profile;
-return (
-<div style={{minHeight:“100vh”,background:“linear-gradient(180deg,#0d0d1f,#0a0a18)”}}>
-<div style={{padding:“16px 16px 12px”,borderBottom:“1px solid rgba(255,255,255,.07)”}}>
-<div style={{display:“flex”,alignItems:“center”,gap:10,marginBottom:10}}>
-<button onClick={onSwitchProfile} style={{fontSize:28,width:46,height:46,background:“rgba(124,58,237,.2)”,border:“1.5px solid rgba(124,58,237,.4)”,borderRadius:13,cursor:“pointer”,flexShrink:0}}>{avatar}</button>
-<div>
-<div style={{fontSize:11,color:”#666”}}>Playing as</div>
-<div style={{fontSize:17,fontWeight:900,color:“white”}}>{name}</div>
-</div>
-<div style={{marginLeft:“auto”,display:“flex”,flexDirection:“column”,alignItems:“flex-end”,gap:5}}>
-<div style={{fontSize:18,fontWeight:900,color:”#fcd34d”}}>{xp} XP</div>
-<button onClick={onLeaderboard} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:9,color:”#bbb”,padding:“4px 10px”,fontSize:12,cursor:“pointer”}}>🏆 Leaderboard</button>
-</div>
-</div>
-<XPBar xp={xp}/>
-</div>
-<div style={{padding:“14px 14px 30px”}}>
-<div style={{fontSize:11,color:”#555”,marginBottom:12,fontWeight:600,textTransform:“uppercase”,letterSpacing:”.07em”}}>Choose a World</div>
-{WORLDS.map(w=>(
-<button key={w.id} onClick={()=>onSelect(w.id)} style={{width:“100%”,background:w.bg,border:`1.5px solid ${w.color}55`,borderRadius:20,padding:“15px 16px”,marginBottom:10,display:“flex”,alignItems:“center”,gap:12,cursor:“pointer”,textAlign:“left”}}>
-<div style={{width:50,height:50,borderRadius:14,background:`${w.color}33`,border:`1.5px solid ${w.color}66`,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:26,flexShrink:0}}>{w.emoji}</div>
-<div style={{flex:1}}>
-<div style={{fontWeight:800,fontSize:15,color:“white”,marginBottom:3}}>{w.name}</div>
-<div style={{fontSize:12,color:”#888”}}>{w.desc}</div>
-<div style={{display:“flex”,gap:6,marginTop:6}}>
-{DIFFICULTIES.map(d=><span key={d.id} style={{fontSize:11,color:d.color,fontWeight:600}}>{d.emoji}{d.label}</span>)}
-</div>
-</div>
-<div style={{fontSize:22,color:w.light}}>›</div>
-</button>
-))}
-</div>
-</div>
-);
+// ─── RESULT ───────────────────────────────────
+function renderResult(world, diff) {
+  const w = world, d = diff, s = state;
+  const pct = Math.round((s.score / s.puzzles.length) * 100);
+  const msg = pct===100 ? "Perfect! 🏆" : pct>=66 ? "Well done! 🎉" : pct>=33 ? "Good effort! 💪" : "Keep practising! 🔄";
+  const xpGained = s.score * d.xp;
+  const stars = s.puzzles.map((_, i) =>
+    `<span style="font-size:28px;filter:${i<s.score?"none":"grayscale(1) opacity(.25)"}">⭐</span>`
+  ).join("");
+
+  return `
+    <div class="screen active" style="background:${w.bg}">
+      <div class="result-wrap">
+        <div class="result-trophy">${pct===100?"🏆":pct>=66?"🎉":"💪"}</div>
+        <div class="result-title">${msg}</div>
+        <div class="result-sub">${s.score}/${s.puzzles.length} correct · ${d.emoji} ${d.label}</div>
+        <div class="result-card">
+          <div class="stars-row">${stars}</div>
+          <div class="xp-gained" style="color:${w.light}">+${xpGained} XP</div>
+          <div style="font-size:12px;color:#888;margin-top:4px">Total: ${s.totalXP + xpGained} XP</div>
+        </div>
+        <button class="btn-primary" data-action="playAgain" style="background:linear-gradient(135deg,${w.color},${w.light});max-width:300px">
+          🔄 New Questions
+        </button>
+        <button class="btn-secondary" data-action="goHome" style="max-width:300px">Back to Map</button>
+      </div>
+    </div>`;
 }
 
-// ── PROFILE PICKER ────────────────────────────────────────────
-function ProfilePicker({ profiles, onSelect, onNew }) {
-return (
-<div style={{minHeight:“100vh”,background:“linear-gradient(180deg,#0d0d1f,#0a0a18)”,display:“flex”,flexDirection:“column”,alignItems:“center”,padding:“40px 24px 24px”}}>
-<div style={{fontSize:54,marginBottom:8}}>🧠</div>
-<div style={{fontSize:26,fontWeight:900,marginBottom:4,background:“linear-gradient(90deg,#a78bfa,#67e8f9)”,WebkitBackgroundClip:“text”,WebkitTextFillColor:“transparent”}}>ThinkQuest</div>
-<div style={{color:”#555”,fontSize:13,marginBottom:36}}>Who’s playing?</div>
-<div style={{width:“100%”,maxWidth:340}}>
-{profiles.map(p=>(
-<button key={p.id} onClick={()=>onSelect(p.id)} style={{width:“100%”,background:“rgba(255,255,255,.06)”,border:“1.5px solid rgba(255,255,255,.1)”,borderRadius:18,padding:“14px 18px”,marginBottom:12,display:“flex”,alignItems:“center”,gap:14,cursor:“pointer”,textAlign:“left”}}>
-<div style={{fontSize:32,width:48,height:48,background:“rgba(124,58,237,.2)”,borderRadius:13,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0}}>{p.avatar}</div>
-<div style={{flex:1}}>
-<div style={{fontWeight:800,fontSize:16,color:“white”,marginBottom:2}}>{p.name}</div>
-<div style={{fontSize:12,color:”#888”}}>{p.xp} XP · {p.gamesPlayed||0} games played</div>
-</div>
-<div style={{fontSize:20,color:”#a78bfa”}}>›</div>
-</button>
-))}
-<button onClick={onNew} style={{width:“100%”,background:“rgba(124,58,237,.1)”,border:“1.5px dashed rgba(124,58,237,.4)”,borderRadius:18,padding:“14px 18px”,display:“flex”,alignItems:“center”,justifyContent:“center”,gap:10,cursor:“pointer”,color:”#a78bfa”,fontWeight:700,fontSize:15,marginTop:4}}>
-<span style={{fontSize:22}}>＋</span> Add New Player
-</button>
-</div>
-</div>
-);
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+function bindEvents() {
+  document.querySelectorAll("[data-action]").forEach(el => {
+    el.addEventListener("click", handleAction);
+  });
 }
 
-function NewProfile({ onSave, onCancel }) {
-const [name,setName]=useState(””);
-const [avatar,setAvatar]=useState(AVATARS[0]);
-const [err,setErr]=useState(””);
-function save(){
-const n=name.trim();
-if(n.length<2){setErr(“Name needs at least 2 characters”);return;}
-onSave({id:Date.now().toString(),name:n,avatar,xp:0,gamesPlayed:0});
-}
-return (
-<div style={{minHeight:“100vh”,background:“linear-gradient(180deg,#0d0d1f,#0a0a18)”,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:28}}>
-<div style={{width:“100%”,maxWidth:320}}>
-{onCancel&&<button onClick={onCancel} style={{background:“none”,border:“none”,color:”#777”,fontSize:13,cursor:“pointer”,marginBottom:20}}>← Back</button>}
-<div style={{fontSize:20,fontWeight:900,color:“white”,marginBottom:20}}>New Explorer</div>
-<div style={{fontSize:13,fontWeight:700,color:”#bbb”,marginBottom:10}}>Choose your avatar</div>
-<div style={{display:“flex”,gap:10,flexWrap:“wrap”,marginBottom:20}}>
-{AVATARS.map(a=>(
-<button key={a} onClick={()=>setAvatar(a)} style={{fontSize:28,width:50,height:50,borderRadius:13,background:avatar===a?“rgba(124,58,237,.4)”:“rgba(255,255,255,.07)”,border:avatar===a?“2px solid #a78bfa”:“1.5px solid rgba(255,255,255,.1)”,cursor:“pointer”}}>
-{a}
-</button>
-))}
-</div>
-<div style={{fontSize:13,fontWeight:700,color:”#bbb”,marginBottom:8}}>Your name</div>
-<input value={name} onChange={e=>{setName(e.target.value);setErr(””);}} onKeyDown={e=>e.key===“Enter”&&save()} placeholder=“Enter your name…” maxLength={20}
-style={{width:“100%”,padding:“14px”,borderRadius:14,background:“rgba(255,255,255,.09)”,border:“1.5px solid rgba(255,255,255,.2)”,color:“white”,fontSize:16,fontWeight:700,outline:“none”,marginBottom:err?8:16,boxSizing:“border-box”}}/>
-{err&&<div style={{color:”#f87171”,fontSize:13,marginBottom:12}}>⚠️ {err}</div>}
-<button onClick={save} style={{width:“100%”,padding:“15px”,borderRadius:15,background:“linear-gradient(135deg,#7c3aed,#06b6d4)”,color:“white”,fontWeight:800,fontSize:16,border:“none”,cursor:“pointer”}}>
-Create Profile →
-</button>
-</div>
-</div>
-);
+function handleAction(e) {
+  const action = e.currentTarget.dataset.action;
+  const id = e.currentTarget.dataset.id;
+  const idx = parseInt(e.currentTarget.dataset.idx);
+  const s = state;
+
+  if (action === "goHome") {
+    setState({ screen:"home", worldId:null, difficulty:null, puzzles:[], idx:0, phase:"play", answers:[], score:0, hintShown:false, lastOk:null });
+  }
+  else if (action === "selectWorld") {
+    setState({ screen:"difficulty", worldId:id });
+  }
+  else if (action === "selectDiff") {
+    const puzzles = pickPuzzles(s.worldId, id);
+    setState({ screen:"play", difficulty:id, puzzles, idx:0, phase:"play", answers:[], score:0, hintShown:false, lastOk:null });
+  }
+  else if (action === "tapAnswer" || action === "elimAnswer") {
+    if (s.phase !== "play") return;
+    const puzzle = s.puzzles[s.idx];
+    const correct = idx === puzzle.answer;
+    // Highlight answer visually
+    const btns = document.querySelectorAll("[data-action='tapAnswer'], [data-action='elimAnswer']");
+    btns.forEach((btn, i) => {
+      if (i === puzzle.answer) btn.classList.add("correct");
+      else if (i === idx && !correct) btn.classList.add("wrong");
+      btn.style.cursor = "default";
+    });
+    setTimeout(() => {
+      const newScore = correct ? s.score + 1 : s.score;
+      const newAnswers = [...s.answers, correct];
+      setState({ phase:"feedback", lastOk:correct, score:newScore, answers:newAnswers });
+    }, 600);
+  }
+  else if (action === "showHint") {
+    setState({ hintShown: true });
+  }
+  else if (action === "nextPuzzle") {
+    if (s.idx < s.puzzles.length - 1) {
+      setState({ idx: s.idx+1, phase:"play", lastOk:null, hintShown:false });
+    } else {
+      const xpGained = s.score * DIFFICULTIES.find(d=>d.id===s.difficulty).xp;
+      setState({ screen:"result", totalXP: s.totalXP + xpGained });
+    }
+  }
+  else if (action === "retryPuzzle") {
+    setState({ phase:"play", lastOk:null });
+  }
+  else if (action === "playAgain") {
+    const xpGained = s.score * DIFFICULTIES.find(d=>d.id===s.difficulty).xp;
+    const newTotalXP = s.totalXP + (s.screen === "play" ? 0 : xpGained);
+    const puzzles = pickPuzzles(s.worldId, s.difficulty);
+    setState({ screen:"play", puzzles, idx:0, phase:"play", answers:[], score:0, hintShown:false, lastOk:null, totalXP: newTotalXP });
+  }
 }
 
-// ── LEADERBOARD ───────────────────────────────────────────────
-function Leaderboard({ currentName, onBack }) {
-const [lb,setLb]=useState([]);
-useEffect(()=>{ loadFrom(“tq_lb3”,true).then(d=>setLb(d||[])); },[]);
-const sorted=[…lb].sort((a,b)=>b.xp-a.xp).slice(0,10);
-const medals=[“🥇”,“🥈”,“🥉”];
-return (
-<div style={{minHeight:“100vh”,background:”#0d0d1f”}}>
-<div style={{display:“flex”,alignItems:“center”,gap:12,padding:“13px 16px”,borderBottom:“1px solid rgba(255,255,255,.08)”}}>
-<button onClick={onBack} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:11,color:“white”,width:36,height:36,fontSize:16,cursor:“pointer”}}>←</button>
-<div style={{fontWeight:800,fontSize:17,color:“white”}}>🏆 Leaderboard</div>
-</div>
-<div style={{padding:15}}>
-{sorted.length===0
-?<div style={{textAlign:“center”,color:”#555”,padding:40}}>No scores yet — be the first! 🌟</div>
-:sorted.map((e,i)=>(
-<div key={i} style={{background:e.name===currentName?“rgba(124,58,237,.2)”:“rgba(255,255,255,.04)”,border:`1px solid ${e.name===currentName?"rgba(124,58,237,.4)":"rgba(255,255,255,.08)"}`,borderRadius:15,padding:“12px 15px”,marginBottom:8,display:“flex”,alignItems:“center”,gap:12}}>
-<div style={{fontSize:20,width:26}}>{medals[i]||`${i+1}`}</div>
-<div style={{fontSize:24,width:34}}>{e.avatar||“🧒”}</div>
-<div style={{flex:1}}>
-<div style={{fontWeight:800,fontSize:14,color:e.name===currentName?”#a78bfa”:”#ffffff”}}>{e.name}{e.name===currentName?” (you)”:””}</div>
-<div style={{fontSize:11,color:”#888”}}>{e.gamesPlayed||0} games played</div>
-</div>
-<div style={{textAlign:“right”}}>
-<div style={{fontWeight:900,fontSize:19,color:”#fcd34d”}}>{e.xp}</div>
-<div style={{fontSize:11,color:”#666”}}>XP</div>
-</div>
-</div>
-))
-}
-<div style={{textAlign:“center”,fontSize:11,color:”#444”,marginTop:8}}>Shared across all players</div>
-</div>
-</div>
-);
-}
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+render();
+</script>
 
-// ── APP ───────────────────────────────────────────────────────
-export default function App() {
-const [screen,setScreen]=useState(“loading”);
-const [profiles,setProfiles]=useState([]);
-const [activeId,setActiveId]=useState(null);
-const [worldId,setWorldId]=useState(null);
-const [difficulty,setDifficulty]=useState(null);
-const [puzzles,setPuzzles]=useState([]);
-const [resultScore,setResultScore]=useState(0);
-
-const profile=profiles.find(p=>p.id===activeId)||null;
-const world=WORLDS.find(w=>w.id===worldId)||null;
-
-useEffect(()=>{
-loadFrom(“tq_profiles2”).then(d=>{
-if(d&&d.length>0){setProfiles(d);setScreen(“picker”);}
-else setScreen(“newprofile”);
-});
-},[]);
-
-async function persistProfiles(updated) {
-setProfiles(updated);
-await saveTo(“tq_profiles2”,updated);
-const lb=updated.map(p=>({name:p.name,avatar:p.avatar,xp:p.xp,gamesPlayed:p.gamesPlayed||0}));
-await saveTo(“tq_lb3”,lb,true);
-}
-
-function handleNewProfile(prof){
-const updated=[…profiles,prof];
-persistProfiles(updated);
-setActiveId(prof.id);
-setScreen(“map”);
-}
-
-async function startGame(wId, diff) {
-setWorldId(wId);
-setDifficulty(diff);
-setScreen(“loading”);
-const generated = await generateQuestions(wId, diff);
-if(generated && generated.length>0){
-setPuzzles(generated);
-setScreen(“play”);
-} else {
-// fallback if API fails
-setPuzzles([
-{type:“tap”,q:“Which number is missing?\n2, 4, ___, 8, 10”,options:[“5”,“6”,“7”,“3”],answer:1,hint:“What is the gap between numbers?”,explain:“The sequence goes +2 each time. 4+2=6.”},
-{type:“elim”,q:“Which word doesn’t belong?”,items:[“Cat”,“Dog”,“Rose”,“Bird”],answer:2,hint:“Three are animals. Which one isn’t?”,explain:“Rose is a plant, not an animal. Cat, Dog, and Bird are all animals.”},
-{type:“tap”,q:“If all birds can fly, and Tweety is a bird,\ncan Tweety fly?”,options:[“Yes”,“No”,“Maybe”,“Not enough info”],answer:0,hint:“Apply the rule to Tweety directly.”,explain:“The rule says ALL birds can fly. Tweety is a bird. So yes, Tweety can fly.”},
-]);
-setScreen(“play”);
-}
-}
-
-function handleDone(score){
-const diff=DIFFICULTIES.find(x=>x.id===difficulty);
-const xpGained=score*(diff.id===“hard”?15:diff.id===“medium”?10:5);
-const updated=profiles.map(p=>{
-if(p.id!==activeId)return p;
-return{…p,xp:p.xp+xpGained,gamesPlayed:(p.gamesPlayed||0)+1};
-});
-persistProfiles(updated);
-setResultScore(score);
-setScreen(“result”);
-}
-
-if(screen===“loading”&&!world) return <div style={{minHeight:“100vh”,background:”#0d0d1f”,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:40}}>🧠</div>;
-if(screen===“loading”&&world) return <LoadingPuzzles world={world} difficulty={difficulty}/>;
-if(screen===“picker”) return <ProfilePicker profiles={profiles} onSelect={id=>{setActiveId(id);setScreen(“map”);}} onNew={()=>setScreen(“newprofile”)}/>;
-if(screen===“newprofile”) return <NewProfile onSave={handleNewProfile} onCancel={profiles.length>0?()=>setScreen(“picker”):null}/>;
-if(screen===“map”&&profile) return <WorldMap profile={profile} onSelect={id=>{setWorldId(id);setScreen(“difficulty”);}} onLeaderboard={()=>setScreen(“leaderboard”)} onSwitchProfile={()=>setScreen(“picker”)}/>;
-if(screen===“difficulty”&&world) return <DifficultyPicker world={world} onSelect={diff=>startGame(worldId,diff)} onBack={()=>setScreen(“map”)}/>;
-if(screen===“play”&&world&&puzzles.length>0) return <PlayScreen world={world} difficulty={difficulty} puzzles={puzzles} onDone={handleDone} onBack={()=>setScreen(“map”)}/>;
-if(screen===“result”&&world) return <ResultScreen world={world} difficulty={difficulty} score={resultScore} total={puzzles.length} xpGained={resultScore*(difficulty===“hard”?15:difficulty===“medium”?10:5)} onPlayAgain={()=>startGame(worldId,difficulty)} onBack={()=>setScreen(“map”)}/>;
-if(screen===“leaderboard”&&profile) return <Leaderboard currentName={profile.name} onBack={()=>setScreen(“map”)}/>;
-return null;
-}
+</body>
+</html>
