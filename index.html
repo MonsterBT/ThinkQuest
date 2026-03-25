@@ -1,23 +1,130 @@
-import { useState, useEffect, useRef } from “react”;
+<!DOCTYPE html>
 
-const AVATARS = [“🧒”,“👧”,“🧑”,“👦”,“🧙”,“🦸”,“🧝”,“🐉”,“🦊”,“🐼”,“🦁”,“🐯”];
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ThinkQuest</title>
+<style>
+  :root {
+    --bg:#0f0f1a;--text:#f0f0ff;--muted:#8888aa;--border:#2a2a4a;
+    --p:#7c3aed;--p2:#a78bfa;--cyan:#06b6d4;
+    --green:#10b981;--amber:#f59e0b;--red:#ef4444;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;overflow-x:hidden}
+  button{font-family:inherit;cursor:pointer}
+  #app{min-height:100vh}
+
+.screen{display:none;min-height:100vh;flex-direction:column}
+.screen.active{display:flex}
+
+/* Nav */
+.nav{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.back-btn{background:rgba(255,255,255,.1);border:none;border-radius:11px;color:#fff;width:36px;height:36px;font-size:17px;display:flex;align-items:center;justify-content:center}
+
+/* Cards */
+.card{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:18px;padding:14px 18px;margin-bottom:11px;display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:none;transition:transform .15s}
+.card:active{transform:scale(.97)}
+.avatar-circle{font-size:30px;width:50px;height:50px;background:rgba(124,58,237,.2);border:1.5px solid rgba(124,58,237,.4);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* Avatar grid */
+.av-btn{font-size:28px;width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;transition:all .2s}
+.av-btn.sel{background:rgba(124,58,237,.35);border-color:#a78bfa}
+
+/* Difficulty */
+.diff-btn{width:100%;border-radius:20px;padding:18px 20px;margin-bottom:13px;display:flex;align-items:center;gap:15px;background:rgba(255,255,255,.05);text-align:left;transition:transform .15s;border:none}
+.diff-btn:active{transform:scale(.97)}
+.diff-icon{font-size:32px;width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+
+/* Play */
+.puzzle-body{flex:1;overflow-y:auto;padding:16px 14px 28px}
+.question{font-size:16px;font-weight:700;line-height:1.6;margin-bottom:18px;white-space:pre-line;color:#fff}
+.opts-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.opt{border-radius:16px;padding:17px 10px;color:#fff;font-size:15px;font-weight:700;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);line-height:1.3;white-space:pre-line;width:100%}
+.opt.ok{background:rgba(16,185,129,.3)!important;border:2px solid #10b981!important}
+.opt.bad{background:rgba(239,68,68,.25)!important;border:2px solid #ef4444!important}
+.elims{display:flex;flex-wrap:wrap;gap:9px}
+.elim{border-radius:13px;padding:13px 15px;color:#fff;font-size:15px;font-weight:700;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.08);flex:1 1 auto;min-width:68px}
+.elim.ok{background:rgba(16,185,129,.3)!important;border:2px solid #10b981!important}
+.elim.bad{background:rgba(239,68,68,.25)!important;border:2px solid #ef4444!important}
+.hint-btn{margin-top:13px;background:none;border:1px dashed rgba(255,255,255,.2);border-radius:12px;color:#999;padding:9px 14px;font-size:12px;width:100%}
+.hint-box{margin-top:11px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:13px;padding:11px 14px;font-size:13px;color:#fcd34d;line-height:1.5}
+.fb-box{border-radius:17px;padding:17px;margin-bottom:13px}
+.fb-ok{background:rgba(16,185,129,.15);border:1.5px solid #10b981}
+.fb-bad{background:rgba(239,68,68,.12);border:1.5px solid #ef4444}
+.dots{display:flex;gap:5px;justify-content:center}
+.dot{height:8px;border-radius:4px;transition:all .3s}
+
+/* Buttons */
+.btn{width:100%;padding:14px;border-radius:16px;font-weight:800;font-size:15px;border:none;color:#fff;margin-bottom:10px}
+.btn-ghost{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2)!important}
+.btn-danger{background:none;border:none;color:#ef4444;font-size:13px;padding:8px;width:100%;text-align:center}
+.btn-text{background:none;border:none;color:#777;font-size:13px;padding:8px;width:100%;text-align:center}
+
+/* XP / Progress bars */
+.xp-track{background:rgba(255,255,255,.12);border-radius:8px;height:7px;overflow:hidden;width:100%}
+.xp-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,#7c3aed,#06b6d4);transition:width .6s}
+.prog-track{background:rgba(255,255,255,.1);border-radius:5px;height:8px;overflow:hidden}
+.prog-fill{height:100%;border-radius:5px;transition:width .5s}
+
+/* Input */
+.txt-input{width:100%;padding:14px;border-radius:14px;background:rgba(255,255,255,.09);border:1.5px solid rgba(255,255,255,.2);color:#fff;font-size:16px;font-weight:700;outline:none;box-sizing:border-box;font-family:inherit}
+.txt-input::placeholder{color:#555}
+.err-msg{color:#f87171;font-size:13px;margin-bottom:10px}
+
+/* Stat boxes */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.stat-box{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:14px;text-align:center}
+.stat-val{font-size:26px;font-weight:900;margin-bottom:3px}
+.stat-lbl{font-size:11px;color:#888}
+
+/* Leaderboard */
+.lb-row{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:15px;padding:12px 15px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+.lb-row.me{background:rgba(124,58,237,.2);border-color:rgba(124,58,237,.4)!important}
+
+/* Result */
+.result-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}
+
+.pad{padding:16px 14px 30px}
+.section-label{font-size:11px;color:#555;font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+
+@keyframes pop{0%{transform:scale(.9);opacity:0}100%{transform:scale(1);opacity:1}}
+.pop{animation:pop .2s ease}
+</style>
+
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const AVATARS = ["🧒","👧","🧑","👦","🧙","🦸","🧝","🐉","🦊","🐼","🦁","🐯"];
+
 const WORLDS = [
 {id:“patterns”,name:“Cipher Caves”,    emoji:“🔍”,color:”#7c3aed”,light:”#a78bfa”,bg:”#1a0f3a”,desc:“Spot the rule, crack the code”},
 {id:“logic”,   name:“Detective HQ”,   emoji:“🔎”,color:”#0891b2”,light:”#67e8f9”,bg:”#0a1f2e”,desc:“Use clues to find the truth”},
 {id:“combos”,  name:“Alchemist’s Lab”,emoji:“🧪”,color:”#059669”,light:”#6ee7b7”,bg:”#0a2018”,desc:“Count every possibility”},
 {id:“strategy”,name:“Strategy Citadel”,emoji:“♟️”,color:”#b45309”,light:”#fcd34d”,bg:”#1f1500”,desc:“Think ahead, outsmart opponents”},
 ];
+
 const DIFFS = [
 {id:“easy”,  label:“Easy”,  emoji:“🌱”,desc:“Simple, 1-step problems”,   color:”#10b981”,xp:5},
 {id:“medium”,label:“Medium”,emoji:“🌿”,desc:“2–3 steps, some tricky bits”,color:”#f59e0b”,xp:10},
 {id:“hard”,  label:“Hard”,  emoji:“🔥”,desc:“Multi-step, real brain work”,color:”#ef4444”,xp:15},
 ];
-const XP_LEVELS=[0,50,120,220,350,520,730,980,1270,1600,2000];
-const TITLES=[“Newcomer”,“Explorer”,“Thinker”,“Reasoner”,“Strategist”,“Mastermind”,“Champion”,“Prodigy”,“Genius”,“Legend”,“Grand Master”];
-function xpLv(xp){let l=1;XP_LEVELS.forEach((v,i)=>{if(xp>=v)l=i+1;});return Math.min(l,XP_LEVELS.length);}
-function xpPct(xp){const l=xpLv(xp);const base=XP_LEVELS[l-1];const next=XP_LEVELS[l]||base+500;return Math.round(((xp-base)/(next-base))*100);}
-function xpNext(xp){const l=xpLv(xp);return l>=XP_LEVELS.length?null:XP_LEVELS[l];}
 
+const XP_LEVELS = [0,50,120,220,350,520,730,980,1270,1600,2000];
+const TITLES    = [“Newcomer”,“Explorer”,“Thinker”,“Reasoner”,“Strategist”,“Mastermind”,“Champion”,“Prodigy”,“Genius”,“Legend”,“Grand Master”];
+
+function xpLv(xp)  { let l=1; XP_LEVELS.forEach((v,i)=>{ if(xp>=v) l=i+1; }); return Math.min(l,XP_LEVELS.length); }
+function xpPct(xp) { const l=xpLv(xp),base=XP_LEVELS[l-1],next=XP_LEVELS[l]||base+500; return Math.round(((xp-base)/(next-base))*100); }
+function xpNext(xp){ const l=xpLv(xp); return l>=XP_LEVELS.length?null:XP_LEVELS[l]; }
+
+// ═══════════════════════════════════════════════
+// QUESTION BANK
+// ═══════════════════════════════════════════════
 const BANK = {
 patterns:{
 easy:[
@@ -27,43 +134,57 @@ easy:[
 {type:“tap”,q:“Which number is missing?\n1, 2, 3, ___, 5, 6”,options:[“2”,“4”,“5”,“7”],answer:1,hint:“Count up from 1.”,explain:“The sequence counts up by 1. After 3 comes 4.”},
 {type:“tap”,q:“5, 10, 15, 20, ___”,options:[“22”,“24”,“25”,“30”],answer:2,hint:“What do you add each time?”,explain:“Add 5 each time. 20+5=25.”},
 {type:“tap”,q:“A B A B A ___”,options:[“A”,“B”,“C”,“D”],answer:1,hint:“The pattern repeats in pairs.”,explain:“A and B alternate. After A comes B.”},
-{type:“elim”,q:“Odd one out:\nDog  Cat  Rose  Fish”,items:[“Dog”,“Cat”,“Rose”,“Fish”],answer:2,hint:“Three are animals. One is not.”,explain:“Rose is a plant. Dog, Cat, Fish are animals.”},
+{type:“elim”,q:“Odd one out:\nDog  Cat  Rose  Fish”,items:[“Dog”,“Cat”,“Rose”,“Fish”],answer:2,hint:“Three are animals. One is not.”,explain:“Rose is a plant. Dog, Cat, Fish are all animals.”},
 {type:“tap”,q:“10, 20, 30, ___”,options:[“35”,“38”,“40”,“45”],answer:2,hint:“You add the same number each time.”,explain:“Add 10 each time. 30+10=40.”},
+{type:“elim”,q:“Which colour comes next?\n🟥 🟦 🟥 🟦 ___”,items:[“🟥”,“🟦”,“🟨”,“🟩”],answer:0,hint:“Two colours alternate.”,explain:“Red and Blue alternate. After 🟦 comes 🟥.”},
+{type:“tap”,q:“🌙 ⭐ 🌙 ⭐ 🌙 ___”,options:[“🌙”,“⭐”,“☀️”,“🌍”],answer:1,hint:“Two symbols alternate.”,explain:“Moon and Star alternate. After 🌙 comes ⭐.”},
 ],
 medium:[
 {type:“tap”,q:“Two rules change at once.\nSmall🔴 Big🔴 Small🔵 Big🔵 Small🔴 ___”,options:[“Small🔵”,“Big🔴”,“Big🔵”,“Small🔴”],answer:1,hint:“Track SIZE and COLOUR separately.”,explain:“Size: S,B,S,B,S→B. Colour: R,R,B,B,R→R. Answer: Big🔴.”},
-{type:“tap”,q:“Find the next number:\n3, 6, 5, 10, 9, ___”,options:[“10”,“18”,“8”,“12”],answer:1,hint:“Look at pairs — does the rule alternate?”,explain:“Alternates ×2 then −1. After 9: 9×2=18.”},
+{type:“tap”,q:“Find the next number:\n3, 6, 5, 10, 9, ***”,options:[“10”,“18”,“8”,“12”],answer:1,hint:“Look at pairs — does the rule alternate?”,explain:“Alternates ×2 then −1. After 9: 9×2=18.”},
 {type:“elim”,q:“Which tile is MISSING?\nRow1: 🔴🔵🟡\nRow2: 🔵🟡🔴\nRow3: 🟡 ___ 🔵”,items:[“🔴”,“🔵”,“🟡”,“🟢”],answer:0,hint:“Each row uses all 3 colours once.”,explain:“Row 3 has 🟡 and 🔵. Missing = 🔴.”},
+{type:“tap”,q:“What is the rule?\n2→6, 3→9, 5→15, 4→***”,options:[“10”,“12”,“14”,“16”],answer:1,hint:“What do you do to the input number?”,explain:“Rule is ×3. So 4×3=12.”},
 {type:“tap”,q:“1, 4, 9, 16, ___”,options:[“20”,“25”,“24”,“18”],answer:1,hint:“Try squaring 1, 2, 3, 4…”,explain:“Square numbers: 1²,2²,3²,4²,5²=25.”},
-{type:“tap”,q:“What comes next?\n1, 1, 2, 3, 5, 8, ___”,options:[“11”,“12”,“13”,“14”],answer:2,hint:“Add the two previous numbers together.”,explain:“Each number = sum of previous two. 5+8=13.”},
 {type:“elim”,q:“Which breaks the pattern?\n2  4  6  9  10  12”,items:[“4”,“6”,“9”,“10”],answer:2,hint:“All numbers should be even.”,explain:“9 is odd. All others are even.”},
+{type:“tap”,q:“100, 90, 80, 70, ***”,options:[“65”,“60”,“55”,“50”],answer:1,hint:“What is being subtracted each time?”,explain:“Subtract 10 each time. 70−10=60.”},
+{type:“tap”,q:“Find the rule:\n5→8, 10→13, 3→6, 7→***”,options:[“9”,“10”,“11”,“12”],answer:1,hint:“What is being added to each input?”,explain:“Rule is +3. So 7+3=10.”},
+{type:“tap”,q:“What comes next?\n1, 1, 2, 3, 5, 8, ___”,options:[“11”,“12”,“13”,“14”],answer:2,hint:“Add the two previous numbers together.”,explain:“Each number = sum of previous two. 5+8=13.”},
+{type:“elim”,q:“Odd one out:\n4  8  12  15  20”,items:[“8”,“12”,“15”,“20”],answer:2,hint:“All should be multiples of 4.”,explain:“15 is not a multiple of 4. The others are.”},
 ],
 hard:[
 {type:“tap”,q:“Sequence has TWO alternating rules.\n1, 2, 6, 7, 21, 22, ___”,options:[“23”,“66”,“44”,“42”],answer:1,hint:“Split into two interleaved sub-sequences.”,explain:“Even steps: +1. Odd steps: ×3. After 22: 22×3=66.”},
-{type:“elim”,q:“Which has a DIFFERENT rule?”,items:[“1,4,9,16”,“4,9,16,25”,“2,4,8,16”,“1,9,25,49”],answer:2,hint:“Three are square sequences. One is not.”,explain:“2,4,8,16 = powers of 2. Others are squares.”},
+{type:“elim”,q:“Which has a DIFFERENT rule from the others?”,items:[“1,4,9,16”,“4,9,16,25”,“2,4,8,16”,“1,9,25,49”],answer:2,hint:“Three are square sequences. One is not.”,explain:“2,4,8,16 = powers of 2. Others are all squares.”},
 {type:“tap”,q:“INPUT → ×2 → −3 → ×2\nInput=5. Output=?”,options:[“11”,“14”,“10”,“7”],answer:1,hint:“Apply each step one at a time.”,explain:“5×2=10, 10−3=7, 7×2=14.”},
 {type:“tap”,q:“Rule: output = (input+3)×2\nWhich input gives output 16?”,options:[“4”,“5”,“6”,“7”],answer:1,hint:“Work backwards: 16÷2=8, then 8−3=?”,explain:“16÷2=8, 8−3=5. Input=5.”},
+{type:“tap”,q:“Grid:\nRow1: 1, 2, 3\nRow2: 2, 4, 6\nRow3: 3, 6, ___”,options:[“7”,“8”,“9”,“10”],answer:2,hint:“Look at both the row rule AND the column rule.”,explain:“Row×Column. Row3,Col3 = 3×3=9.”},
+{type:“tap”,q:“f(x) = x×x − 1\nf(4) = ?”,options:[“13”,“14”,“15”,“16”],answer:2,hint:“First square 4, then subtract 1.”,explain:“4×4=16, 16−1=15.”},
 ],
 },
 logic:{
 easy:[
 {type:“elim”,q:“Alice, Ben, Cara each have one pet.\n① Ben ≠ cat  ② Cara = fish\nWho has the CAT?”,items:[“Alice”,“Ben”,“Cara”],answer:0,hint:“Start with what’s certain: Cara has the fish.”,explain:“Cara=fish. Ben≠cat so Ben=dog. Alice gets the cat.”},
-{type:“tap”,q:“Tom > Sam in height.\nSam > Jay in height.\nIs Tom taller than Jay?”,options:[“Yes”,“No”,“Can’t tell”,“Sometimes”],answer:0,hint:“Chain the two facts together.”,explain:“Tom>Sam AND Sam>Jay means Tom>Jay. Yes.”},
-{type:“tap”,q:“All dogs are animals.\nRex is a dog. Is Rex an animal?”,options:[“Yes”,“No”,“Maybe”,“Sometimes”],answer:0,hint:“The rule applies to ALL dogs.”,explain:“All dogs are animals. Rex is a dog. So Rex is an animal.”},
+{type:“tap”,q:“Tom > Sam in height.\nSam > Jay in height.\nIs Tom taller than Jay?”,options:[“Yes”,“No”,“Can’t tell”,“Sometimes”],answer:0,hint:“Can you chain the two facts?”,explain:“Tom>Sam AND Sam>Jay → Tom>Jay. Yes.”},
+{type:“tap”,q:“All dogs are animals.\nRex is a dog.\nIs Rex an animal?”,options:[“Yes”,“No”,“Maybe”,“Sometimes”],answer:0,hint:“The rule applies to ALL dogs.”,explain:“All dogs are animals. Rex is a dog. So Rex is an animal.”},
 {type:“elim”,q:“Red, Blue, Green pencils.\n① Mia ≠ Red  ② Sam = Blue\nWho has Red?”,items:[“Mia”,“Sam”,“Leo”],answer:2,hint:“Sam’s colour is given. Then eliminate.”,explain:“Sam=Blue. Mia≠Red so Mia=Green. Leo has Red.”},
 {type:“tap”,q:“Anna is older than Ben.\nBen is older than Cara.\nWho is the youngest?”,options:[“Anna”,“Ben”,“Cara”,“Can’t tell”],answer:2,hint:“Chain the two age facts.”,explain:“Anna>Ben>Cara. Cara is the youngest.”},
-{type:“elim”,q:“Ball is NOT in A. Ball is NOT in B.\nWhere is the ball?”,items:[“Box A”,“Box B”,“Box C”],answer:2,hint:“Eliminate the impossible options.”,explain:“Not A, not B — it must be in C.”},
+{type:“elim”,q:“Ball is NOT in A.\nBall is NOT in B.\nWhere is the ball?”,items:[“Box A”,“Box B”,“Box C”],answer:2,hint:“Eliminate the impossible options.”,explain:“Not A, not B — it must be in C.”},
+{type:“tap”,q:“No fish can walk.\nGoldie is a fish.\nCan Goldie walk?”,options:[“Yes”,“No”,“Maybe”,“Sometimes”],answer:1,hint:“Apply the rule directly.”,explain:“No fish can walk. Goldie is a fish. So Goldie cannot walk.”},
+{type:“tap”,q:“P is TRUE. Q is FALSE.\nWhat is P AND Q?”,options:[“True”,“False”,“Maybe”,“Depends”],answer:1,hint:“AND requires BOTH to be true.”,explain:“true AND false = FALSE.”},
 ],
 medium:[
-{type:“tap”,q:“If A→B and B→C, which MUST be true?”,options:[“A→C only”,“C→A only”,“Both”,“Neither”],answer:0,hint:“Arrows chain forward but do not reverse.”,explain:“A→B and B→C means A→C. But C→A is not guaranteed.”},
+{type:“tap”,q:“If A→B and B→C,\nwhich MUST be true?”,options:[“A→C only”,“C→A only”,“Both”,“Neither”],answer:0,hint:“Arrows chain forward but do not reverse.”,explain:“A→B and B→C means A→C. But C→A is not guaranteed.”},
 {type:“elim”,q:“Three boxes. One has gold.\nA:‘Gold is in B’  B:‘Gold not here’  C:‘Gold in A’\nExactly ONE label is true. Where?”,items:[“Box A”,“Box B”,“Box C”],answer:1,hint:“Try placing gold in each box. Count true statements.”,explain:“Gold in B: A=true, B=false, C=false → exactly 1 true ✓”},
-{type:“tap”,q:“Some birds can’t fly.\nTweety is a bird.\nCan Tweety definitely fly?”,options:[“Yes”,“No”,“Maybe”,“Always”],answer:2,hint:”‘Some’ birds can’t fly — we don’t know which kind Tweety is.”,explain:“We can’t be certain. Tweety might or might not fly.”},
-{type:“tap”,q:“If NOT A → B. B is false.\nWhat can we say about A?”,options:[“A is false”,“A is true”,“Can’t tell”,“Maybe true”],answer:1,hint:“If B is false, what must be true for the rule to hold?”,explain:“Not A→B. B=false. So ‘not A’ must be false. Therefore A is true.”},
+{type:“tap”,q:“Some birds can’t fly.\nTweety is a bird.\nCan Tweety definitely fly?”,options:[“Yes”,“No”,“Maybe”,“Always”],answer:2,hint:”‘Some’ birds can’t fly — we don’t know which kind.”,explain:“We can’t be certain. Tweety might or might not fly.”},
+{type:“tap”,q:“If NOT A → B. B is false.\nWhat can we say about A?”,options:[“A is false”,“A is true”,“Can’t tell”,“Maybe true”],answer:1,hint:“If B is false, what must be true?”,explain:“Not A→B. B=false. So ‘not A’ must be false. Therefore A is true.”},
+{type:“tap”,q:“All mammals are warm-blooded.\nWhales are mammals.\nAre whales warm-blooded?”,options:[“Yes”,“No”,“Maybe”,“Can’t tell”],answer:0,hint:“Apply: if ALL mammals, then whales too.”,explain:“All mammals are warm-blooded. Whales are mammals. Yes.”},
+{type:“tap”,q:“Anna, Bo, Cal, Dana like colours.\n① Anna≠red  ② Bo=blue\n③ Cal≠green  ④ Dana≠yellow\nWho CAN have red?”,options:[“Anna”,“Bo”,“Cal”,“Dana”],answer:2,hint:“Eliminate who can’t have red.”,explain:“Bo=blue. Anna≠red. Cal has no restriction on red.”},
 ],
 hard:[
-{type:“tap”,q:“Knights tell truth. Knaves lie.\nA:‘B is a knight.’ B:‘A and I are different.’\nWhat are they?”,options:[“Both knights”,“Both knaves”,“A=knight B=knave”,“A=knave B=knight”],answer:1,hint:“Assume A is a knight and follow all consequences.”,explain:“If A is knight: B is knight. But B says ‘we’re different’=false. Contradiction. Both are knaves.”},
+{type:“tap”,q:“Knights tell truth. Knaves lie.\nA:‘B is a knight.’ B:‘A and I are different.’\nWhat are they?”,options:[“Both knights”,“Both knaves”,“A=knight B=knave”,“A=knave B=knight”],answer:1,hint:“Assume A is a knight and follow all consequences.”,explain:“If A is knight: B is knight. B says ‘we’re different’=false. Contradiction. Both are knaves.”},
 {type:“elim”,q:“4 suspects. One did it. Only ONE statement is true.\nA:‘It was B.’ B:‘It was C.’\nC:‘Not me.’ D:‘A is lying.’\nWho did it?”,items:[“A”,“B”,“C”,“D”],answer:3,hint:“Try each suspect. Count true statements.”,explain:“If D did it: A=false, B=false, C=true, D=false → exactly 1 true ✓”},
-{type:“tap”,q:“If A then B. If B then C. If C then D.\nD is false. What follows?”,options:[“A is false”,“B is false”,“C is false”,“All of the above”],answer:3,hint:“Work backwards from D being false.”,explain:“D=false→C=false→B=false→A=false. All are false.”},
+{type:“tap”,q:“If A then B. If B then C. If C then D.\nD is false. What follows?”,options:[“A is false”,“B is false”,“C is false”,“All of the above”],answer:3,hint:“Work backwards from D being false.”,explain:“D=false→C=false→B=false→A=false. All false.”},
+{type:“tap”,q:“P=true, Q=false, R=true.\nWhat is (P OR Q) AND (NOT R)?”,options:[“True”,“False”,“Maybe”,“Depends”],answer:1,hint:“Solve each bracket first.”,explain:”(P OR Q)=true. (NOT R)=false. true AND false = FALSE.”},
+{type:“tap”,q:“100 lockers. Student n toggles every nth locker.\nWhich locker stays OPEN?”,options:[“Locker 50”,“Locker 25”,“Locker 36”,“Locker 64”],answer:2,hint:“A locker stays open if toggled an odd number of times.”,explain:“Only perfect squares have an odd number of factors. 36=6².”},
 ],
 },
 combos:{
@@ -73,445 +194,386 @@ easy:[
 {type:“elim”,q:“Which combo is MISSING?\nRed+A, Red+B, Blue+A, Blue+C, Red+C”,items:[“Blue+B”,“Red+A”,“Blue+C”,“Red+B”],answer:0,hint:“List all 6 combos systematically.”,explain:“Full list: Red+A,B,C and Blue+A,B,C. Blue+B is missing.”},
 {type:“tap”,q:“A coin flipped twice.\nHow many different outcomes?”,options:[“2”,“3”,“4”,“5”],answer:2,hint:“List all: HH, HT, TH, TT…”,explain:“HH, HT, TH, TT = 4 outcomes.”},
 {type:“tap”,q:“3 sandwiches + 2 drinks.\nHow many meal combinations?”,options:[“5”,“6”,“8”,“9”],answer:1,hint:“Multiply choices together.”,explain:“3×2=6 meal combinations.”},
+{type:“tap”,q:“You roll a die (1–6).\nHow many possible outcomes?”,options:[“4”,“5”,“6”,“7”],answer:2,hint:“A die has faces numbered 1 through 6.”,explain:“6 faces = 6 possible outcomes.”},
+{type:“tap”,q:“Ice cream: 2 flavours × 2 toppings.\nHow many combinations?”,options:[“2”,“3”,“4”,“6”],answer:2,hint:“For each flavour, how many topping choices?”,explain:“2×2=4 combinations.”},
 ],
 medium:[
 {type:“tap”,q:“Choose 2 books from 4 (A,B,C,D).\nOrder doesn’t matter. How many ways?”,options:[“12”,“8”,“6”,“4”],answer:2,hint:“List: AB, AC, AD, BC… BA=AB so don’t double count.”,explain:“AB,AC,AD,BC,BD,CD = 6 pairs.”},
-{type:“tap”,q:“Passwords: 2 letters from {A,B} + 1 digit from {1,2,3}.\nHow many passwords?”,options:[“7”,“10”,“12”,“6”],answer:2,hint:“How many choices for each position? Multiply.”,explain:“2×2×3=12 passwords.”},
+{type:“tap”,q:“Passwords: 2 letters from {A,B} + 1 digit from {1,2,3}.\nHow many passwords?”,options:[“7”,“10”,“12”,“6”],answer:2,hint:“Choices for each position? Multiply them.”,explain:“2×2×3=12 passwords.”},
 {type:“tap”,q:“5 people shake hands — each pair once.\nHow many handshakes?”,options:[“10”,“20”,“5”,“25”],answer:0,hint:“Person 1 shakes 4. Person 2 shakes 3 new…”,explain:“4+3+2+1=10.”},
+{type:“elim”,q:“Which needs MOST grabs to guarantee a pair?\n(Worst case, no peeking)”,items:[“3 red 2 blue”,“5 different colours”,“2 red 2 blue”,“10 red 1 blue”],answer:1,hint:“More colours = more unlucky draws before a repeat.”,explain:“5 colours: grab one of each (5) before grab 6 guarantees a match.”},
 {type:“tap”,q:“3-letter codes from A,B,C,D (no repeats).\nMust start with A or B. How many?”,options:[“6”,“8”,“12”,“16”],answer:2,hint:“Split into two cases: starts A, or starts B.”,explain:“Each case: 3×2=6. Two cases: 6+6=12.”},
+{type:“tap”,q:“How many ways to arrange Red, Blue, Green balls in a row?”,options:[“3”,“4”,“6”,“9”],answer:2,hint:“3 choices for 1st, then 2, then 1.”,explain:“3×2×1=6 arrangements.”},
 ],
 hard:[
 {type:“tap”,q:“5 socks in the dark: 3 red, 2 blue.\nMinimum grabs to GUARANTEE a matching pair?”,options:[“2”,“3”,“4”,“5”],answer:1,hint:“Think WORST CASE — not average.”,explain:“Worst case: grab red then blue. 3rd must match. Answer: 3.”},
-{type:“tap”,q:“13 people at a party.\nMust at least 2 share a birth month?”,options:[“Yes, always”,“No, never”,“Maybe”,“Only if unlucky”],answer:0,hint:“There are only 12 months. What happens with 13 people?”,explain:“Pigeonhole: 13 people, 12 months → at least 2 share a month. Guaranteed.”},
+{type:“tap”,q:“13 people at a party.\nMust at least 2 share a birth month?”,options:[“Yes, always”,“No, never”,“Maybe”,“Only if unlucky”],answer:0,hint:“There are only 12 months.”,explain:“Pigeonhole: 13 people, 12 months → at least 2 share a month.”},
 {type:“tap”,q:“How many ways to arrange the letters in MATH?”,options:[“12”,“16”,“24”,“36”],answer:2,hint:“4 choices for 1st, then 3, then 2, then 1.”,explain:“4×3×2×1=24.”},
 {type:“tap”,q:“Menu: 3 starters, 4 mains, 2 desserts. One from each.\nHow many different meals?”,options:[“9”,“24”,“14”,“12”],answer:1,hint:“Multiply all choices.”,explain:“3×4×2=24 different meals.”},
+{type:“tap”,q:“4-digit codes, digits 1–3 only.\nNo two adjacent digits the same. How many?”,options:[“12”,“18”,“24”,“36”],answer:2,hint:“First digit: 3 choices. Each next digit: 2 choices.”,explain:“3×2×2×2=24 valid codes.”},
 ],
 },
 strategy:{
 easy:[
-{type:“tap”,q:“Path A: pay 1 coin, get 2 back.\nPath B: pay 2 coins, get 4 back.\nStart with 3 coins. Which ends with MORE?”,options:[“Path A → 4 coins”,“Path B → 5 coins”,“Equal”,“Can’t tell”],answer:1,hint:“Calculate end result: start − cost + reward.”,explain:“A: 3−1+2=4. B: 3−2+4=5. Path B wins.”},
+{type:“tap”,q:“Path A: pay 1 coin, get 2 back.\nPath B: pay 2 coins, get 4 back.\nStart with 3 coins. Which ends with MORE?”,options:[“Path A → 4 coins”,“Path B → 5 coins”,“Equal”,“Can’t tell”],answer:1,hint:“Calculate end result for BOTH: start − cost + reward.”,explain:“A: 3−1+2=4. B: 3−2+4=5. Path B wins.”},
 {type:“elim”,q:“Noughts & Crosses. X played centre. O’s turn.\nBest move?”,items:[“A corner”,“An edge”,“Anywhere”,“Centre again”],answer:0,hint:“Edges let X set up two winning threats at once.”,explain:“Corners block X’s fork. Edges give X too many threats.”},
 {type:“tap”,q:“You have 10 tokens. Each play costs 2.\nHow many times can you play?”,options:[“4”,“5”,“6”,“8”],answer:1,hint:“Divide your tokens by cost per play.”,explain:“10÷2=5 plays.”},
-{type:“tap”,q:“Losing 5–3. 2 moves left. Each move scores 1.\nCan you WIN?”,options:[“Yes”,“No”,“Maybe”,“Need more info”],answer:1,hint:“What’s your best possible final score?”,explain:“Best case: 3+2=5. You can draw but not win.”},
+{type:“tap”,q:“Losing 5–3. 2 moves left. Each move scores 1.\nCan you WIN?”,options:[“Yes”,“No”,“Maybe”,“Need more info”],answer:1,hint:“What is your best possible final score?”,explain:“Best case: 3+2=5. You can draw but not win.”},
+{type:“tap”,q:“Shield: 4 coins, +3 defence.\nEnemy attack=3. Your defence=1.\nDoes the shield help you survive?”,options:[“Yes”,“No”,“Makes no difference”,“Depends”],answer:0,hint:“Compare your new defence to enemy attack.”,explain:“With shield: defence=4 vs enemy attack=3. You survive.”},
 ],
 medium:[
 {type:“tap”,q:“Shield: 5 gems, lasts 1 battle.\nFortress: 15 gems, lasts 5 battles.\nYou have 15 gems, expect 4 battles. Best?”,options:[“4 shields=20 gems (can’t afford)”,“Fortress=15 gems”,“2 shields=10 gems”,“1 shield=5 gems”],answer:1,hint:“Compare total cost over 4 battles.”,explain:“Fortress=3 gems/battle. 4 shields=20 (unaffordable). Fortress wins.”},
 {type:“elim”,q:“3 possible moves:\nX: wins if opponent plays badly.\nY: draws no matter what.\nZ: wins against optimal opponent.\nBest move?”,items:[“Move X”,“Move Y”,“Move Z”,“All equal”],answer:2,hint:“A smart opponent won’t play badly.”,explain:“Move Z wins even against optimal play.”},
 {type:“tap”,q:“Losing 10–8 with 1 move left.\nMove A: 40% chance score 3.\nMove B: 90% chance score 1.\nBest chance to WIN?”,options:[“Move A”,“Move B”,“Equal”,“Can’t tell”],answer:0,hint:“What score do you NEED to win?”,explain:“You need 3 to win. Move B maxes at 1. Move A is the only path.”},
-{type:“tap”,q:“7 stones. Remove 1 or 2 per turn.\nLast to take wins. You go first. Best move?”,options:[“Take 1”,“Take 2”,“Either works”,“Take all”],answer:0,hint:“Losing positions are multiples of 3.”,explain:“From 7, take 1 → leaves 6 (losing for opponent).”},
+{type:“tap”,q:“Opponent wins NEXT turn unless you block.\nBlock OR set up your own win next turn?”,options:[“Block now”,“Set up own win”,“Doesn’t matter”,“Random move”],answer:0,hint:“What happens if you don’t block?”,explain:“If you don’t block, opponent wins immediately.”},
+{type:“tap”,q:“7 stones. Remove 1 or 2 per turn.\nLast to take wins. You go first. Best move?”,options:[“Take 1”,“Take 2”,“Either works”,“Take all”],answer:0,hint:“Losing positions are multiples of 3.”,explain:“From 7, take 1 → leaves 6 (a losing position for opponent).”},
 ],
 hard:[
 {type:“tap”,q:“You pick a row. Opponent picks a column.\nGrid: Row1=[3,5]  Row2=[1,4]\nBest row?”,options:[“Row 1 (guaranteed 3)”,“Row 2 (guaranteed 1)”,“Both equal”,“Depends”],answer:0,hint:“Opponent picks the column that hurts you most.”,explain:“Minimax: Row1 min=3, Row2 min=1. Pick Row1.”},
 {type:“tap”,q:“Pile of 5 stones. Remove 1 or 2. Last wins.\nBest opening?”,options:[“Take 1”,“Take 2”,“Either works”,“Take all”],answer:1,hint:“Losing positions are multiples of 3.”,explain:“From 5, take 2 → leaves 3 (losing for opponent).”},
 {type:“elim”,q:“Tournament: A=easy, B=medium, C=hard.\nMust win 2 IN A ROW. Best order?”,items:[“A,B,A”,“B,A,B”,“C,A,C”,“A,C,A”],answer:1,hint:“Middle opponent is the one you must always beat.”,explain:“B,A,B: beat A (easy) in middle + one B (medium). Best odds.”},
+{type:“tap”,q:“Gain 2pts/round. Opponent gains 3pts/round.\nYou start with 10pts, opponent 0pts.\nWhich round does opponent FIRST overtake you?”,options:[“Round 8”,“Round 10”,“Round 11”,“Round 5”],answer:2,hint:“When does 3r > 10+2r?”,explain:“3r=10+2r → r=10 (equal). Round 11 opponent leads.”},
+{type:“tap”,q:“4 endings: A=win, B=draw, C=lose, D=draw.\nYou pick path (A,C) or (B,D).\nOpponent picks the final outcome. Which path?”,options:[“Path A,C”,“Path B,D”,“Doesn’t matter”,“Flip a coin”],answer:1,hint:“Opponent always picks what’s WORST for you.”,explain:“Path A,C → opponent picks C (you lose). Path B,D → opponent picks D (draw). Draw beats loss.”},
 ],
 },
 };
 
-// ── STORAGE ───────────────────────────────────────────
-function loadProfiles(){try{return JSON.parse(localStorage.getItem(“tq_v2”))||[];}catch{return [];}}
-function saveProfiles(p){try{localStorage.setItem(“tq_v2”,JSON.stringify(p));}catch{}}
+// ═══════════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════════
+const STORE = “tq_profiles_v2”;
+function loadProfiles(){ try{ return JSON.parse(localStorage.getItem(STORE))||[]; }catch{ return []; } }
+function saveProfiles(p){ try{ localStorage.setItem(STORE,JSON.stringify(p)); }catch{} }
 function mkProfile(name,avatar){
 return {id:Date.now().toString(),name,avatar,xp:0,gamesPlayed:0,correctTotal:0,
 worlds:{patterns:{games:0,correct:0},logic:{games:0,correct:0},combos:{games:0,correct:0},strategy:{games:0,correct:0}}};
 }
-function shuffle(arr){return […arr].sort(()=>Math.random()-.5);}
+function shuffle(arr){ return […arr].sort(()=>Math.random()-.5); }
 
-// ── SHARED STYLES ─────────────────────────────────────
-const S = {
-card:(extra={})=>({background:“rgba(255,255,255,.06)”,border:“1.5px solid rgba(255,255,255,.1)”,borderRadius:18,padding:“14px 18px”,marginBottom:11,display:“flex”,alignItems:“center”,gap:14,width:“100%”,textAlign:“left”,cursor:“pointer”,…extra}),
-btn:(bg,extra={})=>({width:“100%”,padding:“14px”,borderRadius:16,border:“none”,color:”#fff”,fontWeight:800,fontSize:15,cursor:“pointer”,marginBottom:10,background:bg,…extra}),
-xpBar:(pct,color=”#7c3aed”)=>(
-<div style={{background:“rgba(255,255,255,.12)”,borderRadius:8,height:7,overflow:“hidden”,width:“100%”}}>
-<div style={{height:“100%”,borderRadius:8,background:`linear-gradient(90deg,${color},#06b6d4)`,width:`${pct}%`,transition:“width .6s”}}/>
-</div>
-),
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let profiles = loadProfiles();
+let activeId = null;
+
+let G = {
+screen: profiles.length ? “picker” : “newprofile”,
+worldId:null, diffId:null,
+puzzles:[], idx:0, phase:“play”,
+lastOk:null, answers:[], score:0, hintShown:false,
+newAv:AVATARS[0], newName:””, newErr:””,
 };
 
-// ── APP ───────────────────────────────────────────────
-export default function App(){
-const [profiles,setProfiles]=useState(()=>loadProfiles());
-const [activeId,setActiveId]=useState(null);
-const [screen,setScreen]=useState(()=>loadProfiles().length?“picker”:“newprofile”);
-const [worldId,setWorldId]=useState(null);
-const [diffId,setDiffId]=useState(null);
-const [puzzles,setPuzzles]=useState([]);
-const [idx,setIdx]=useState(0);
-const [phase,setPhase]=useState(“play”);
-const [lastOk,setLastOk]=useState(null);
-const [answers,setAnswers]=useState([]);
-const [score,setScore]=useState(0);
-const [hintShown,setHintShown]=useState(false);
-const [newName,setNewName]=useState(””);
-const [newAv,setNewAv]=useState(AVATARS[0]);
-const [newErr,setNewErr]=useState(””);
+function profile(){ return profiles.find(p=>p.id===activeId)||null; }
+function world()  { return WORLDS.find(w=>w.id===G.worldId)||null; }
+function diff()   { return DIFFS.find(d=>d.id===G.diffId)||null; }
 
-const profile=profiles.find(p=>p.id===activeId)||null;
-const world=WORLDS.find(w=>w.id===worldId)||null;
-const diff=DIFFS.find(d=>d.id===diffId)||null;
-const puzzle=puzzles[idx]||null;
+function set(patch){ Object.assign(G,patch); render(); }
 
-function persist(updated){setProfiles(updated);saveProfiles(updated);}
-function updateProfile(patch){persist(profiles.map(p=>p.id===activeId?{…p,…patch}:p));}
-
-function go(sc){setScreen(sc);}
-
-function createProfile(){
-const n=newName.trim();
-if(n.length<2){setNewErr(“Name needs at least 2 characters”);return;}
-const p=mkProfile(n,newAv);
-const updated=[…profiles,p];
-persist(updated);
-setActiveId(p.id);
-setNewName(””);setNewErr(””);
-go(“map”);
+function persist(updated){ profiles=updated; saveProfiles(profiles); }
+function updateProfile(patch){
+persist(profiles.map(p=>p.id===activeId?{…p,…patch}:p));
 }
 
-function deleteProfile(){
-if(!window.confirm(`Delete ${profile.name}? This cannot be undone.`))return;
-const updated=profiles.filter(p=>p.id!==activeId);
-persist(updated);
-setActiveId(null);
-go(updated.length?“picker”:“newprofile”);
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function xpBar(pct, h=7){
+return `<div class="xp-track" style="height:${h}px">
+<div class="xp-fill" style="width:${pct}%"></div>
+
+  </div>`;
+}
+function progBar(pct, color){
+  return `<div class="prog-track">
+    <div class="prog-fill" style="width:${pct}%;background:${color}"></div>
+  </div>`;
+}
+function navBar(title, backAction){
+  return `<div class="nav">
+    <button class="back-btn" data-a="${backAction}">←</button>
+    <span style="font-weight:800;font-size:16px;color:#fff;flex:1">${title}</span>
+  </div>`;
 }
 
-function startGame(wid,did){
-const pool=shuffle(BANK[wid][did]).slice(0,3);
-setWorldId(wid);setDiffId(did);setPuzzles(pool);
-setIdx(0);setPhase(“play”);setAnswers([]);setScore(0);setHintShown(false);setLastOk(null);
-go(“play”);
-}
-
-function handleAnswer(i){
-if(phase!==“play”)return;
-const ok=i===puzzle.answer;
-setLastOk(ok);
-if(ok)setScore(s=>s+1);
-setAnswers(a=>[…a,ok]);
-setTimeout(()=>setPhase(“feedback”),600);
-}
-
-function nextPuzzle(){
-if(idx<puzzles.length-1){setIdx(i=>i+1);setPhase(“play”);setLastOk(null);setHintShown(false);}
-else{
-const xpGained=score*diff.xp;
-const newWorlds={…profile.worlds};
-newWorlds[worldId]={games:(newWorlds[worldId]?.games||0)+1,correct:(newWorlds[worldId]?.correct||0)+score};
-updateProfile({xp:profile.xp+xpGained,gamesPlayed:profile.gamesPlayed+1,correctTotal:profile.correctTotal+score,worlds:newWorlds});
-go(“result”);
-}
-}
-
-function playAgain(){startGame(worldId,diffId);}
-
-// ── RENDER ──────────────────────────────────────────
-const base={minHeight:“100vh”,background:“linear-gradient(180deg,#0d0d1f,#0a0a18)”,color:”#f0f0ff”,fontFamily:”‘Segoe UI’,system-ui,sans-serif”};
-const pad={padding:“16px 14px 30px”};
-const nav=(title,back)=>(
-<div style={{display:“flex”,alignItems:“center”,gap:10,padding:“12px 14px”,borderBottom:“1px solid rgba(255,255,255,.08)”}}>
-<button onClick={back} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:11,color:”#fff”,width:36,height:36,fontSize:17,cursor:“pointer”}}>←</button>
-<span style={{fontWeight:800,fontSize:16,color:”#fff”,flex:1}}>{title}</span>
-</div>
-);
-
-// PICKER
-if(screen===“picker”) return (
-<div style={{...base,...pad}}>
-<div style={{textAlign:“center”,padding:“20px 0 24px”}}>
-<div style={{fontSize:52,marginBottom:6}}>🧠</div>
-<div style={{fontSize:26,fontWeight:900,background:“linear-gradient(90deg,#a78bfa,#67e8f9)”,WebkitBackgroundClip:“text”,WebkitTextFillColor:“transparent”}}>ThinkQuest</div>
-<div style={{color:”#555”,fontSize:13,marginTop:3}}>Who’s playing?</div>
-</div>
-{profiles.map(p=>{
+// ═══════════════════════════════════════════════
+// SCREENS
+// ═══════════════════════════════════════════════
+function renderPicker(){
+const cards = profiles.map(p=>{
 const lv=xpLv(p.xp);
-return(
-<button key={p.id} onClick={()=>{setActiveId(p.id);go(“map”);}} style={S.card()}>
-<div style={{fontSize:30,width:50,height:50,background:“rgba(124,58,237,.2)”,border:“1.5px solid rgba(124,58,237,.4)”,borderRadius:14,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0}}>{p.avatar}</div>
-<div style={{flex:1}}>
-<div style={{fontWeight:800,fontSize:16,color:”#fff”,marginBottom:2}}>{p.name}</div>
-<div style={{fontSize:12,color:”#888”,marginBottom:6}}>Level {lv} · {TITLES[lv-1]} · {p.xp} XP</div>
-{S.xpBar(xpPct(p.xp))}
+return `<button class="card" style="background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1)" data-a="selectProfile" data-id="${p.id}"> <div class="avatar-circle">${p.avatar}</div> <div style="flex:1;min-width:0"> <div style="font-weight:800;font-size:16px;color:#fff;margin-bottom:2px">${p.name}</div> <div style="font-size:12px;color:#888;margin-bottom:6px">Level ${lv} · ${TITLES[lv-1]} · ${p.xp} XP</div> ${xpBar(xpPct(p.xp))} </div> <span style="font-size:20px;color:#a78bfa;flex-shrink:0">›</span> </button>`;
+}).join(””);
+return `<div class="screen active" style="background:linear-gradient(180deg,#0d0d1f,#0a0a18)">
+<div class="pad">
+<div style="text-align:center;padding:20px 0 24px">
+<div style="font-size:52px;margin-bottom:6px">🧠</div>
+<div style="font-size:26px;font-weight:900;background:linear-gradient(90deg,#a78bfa,#67e8f9);-webkit-background-clip:text;-webkit-text-fill-color:transparent">ThinkQuest</div>
+<div style="color:#555;font-size:13px;margin-top:3px">Who’s playing?</div>
 </div>
-<span style={{fontSize:20,color:”#a78bfa”}}>›</span>
-</button>
-);
-})}
-<button onClick={()=>{setNewName(””);setNewErr(””);setNewAv(AVATARS[0]);go(“newprofile”);}} style={S.btn(“rgba(124,58,237,.15)”,{border:“1.5px dashed rgba(124,58,237,.4)”,color:”#a78bfa”})}>＋ Add New Player</button>
+${cards}
+<button class="btn pop" data-a="goNewProfile" style="background:rgba(124,58,237,.15);border:1.5px dashed rgba(124,58,237,.4);color:#a78bfa">＋ Add New Player</button>
 </div>
-);
 
-// NEW PROFILE
-if(screen===“newprofile”) return (
-<div style={{…base,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:28}}>
-<div style={{width:“100%”,maxWidth:320}}>
-{profiles.length>0&&<button onClick={()=>go(“picker”)} style={{background:“none”,border:“none”,color:”#777”,fontSize:13,cursor:“pointer”,marginBottom:20}}>← Back</button>}
-<div style={{fontSize:20,fontWeight:900,color:”#fff”,marginBottom:20}}>New Explorer</div>
-<div style={{fontSize:13,fontWeight:700,color:”#bbb”,marginBottom:10}}>Choose your avatar</div>
-<div style={{display:“flex”,flexWrap:“wrap”,gap:10,marginBottom:20}}>
-{AVATARS.map(a=>(
-<button key={a} onClick={()=>setNewAv(a)} style={{fontSize:28,width:52,height:52,borderRadius:13,background:newAv===a?“rgba(124,58,237,.35)”:“rgba(255,255,255,.07)”,border:newAv===a?“2px solid #a78bfa”:“1.5px solid rgba(255,255,255,.1)”,cursor:“pointer”}}>{a}</button>
-))}
-</div>
-<div style={{fontSize:13,fontWeight:700,color:”#bbb”,marginBottom:8}}>Your name</div>
-<input value={newName} onChange={e=>{setNewName(e.target.value);setNewErr(””);}} onKeyDown={e=>e.key===“Enter”&&createProfile()} placeholder=“Enter your name…” maxLength={20}
-style={{width:“100%”,padding:14,borderRadius:14,background:“rgba(255,255,255,.09)”,border:“1.5px solid rgba(255,255,255,.2)”,color:”#fff”,fontSize:16,fontWeight:700,outline:“none”,marginBottom:newErr?8:14,boxSizing:“border-box”,fontFamily:“inherit”}}/>
-{newErr&&<div style={{color:”#f87171”,fontSize:13,marginBottom:10}}>⚠️ {newErr}</div>}
-<button onClick={createProfile} style={S.btn(“linear-gradient(135deg,#7c3aed,#06b6d4)”)}>Create Profile →</button>
-</div>
-</div>
-);
+  </div>`;
+}
 
-// MAP
-if(screen===“map”&&profile){
-const lv=xpLv(profile.xp);
-return(
-<div style={{…base,minHeight:“100vh”}}>
-<div style={{padding:“16px 16px 12px”,borderBottom:“1px solid rgba(255,255,255,.07)”}}>
-<div style={{display:“flex”,alignItems:“center”,gap:10,marginBottom:10}}>
-<button onClick={()=>go(“profileview”)} style={{fontSize:28,width:46,height:46,background:“rgba(124,58,237,.2)”,border:“1.5px solid rgba(124,58,237,.4)”,borderRadius:13,cursor:“pointer”,flexShrink:0}}>{profile.avatar}</button>
-<div style={{flex:1}}>
-<div style={{fontSize:11,color:”#666”}}>Playing as</div>
-<div style={{fontSize:17,fontWeight:900,color:”#fff”}}>{profile.name}</div>
-<div style={{fontSize:11,color:”#a78bfa”,fontWeight:600}}>Level {lv} · {TITLES[lv-1]}</div>
+function renderNewProfile(){
+const avBtns = AVATARS.map(a=>
+`<button class="av-btn${G.newAv===a?' sel':''}" data-a="pickAv" data-av="${a}">${a}</button>`
+).join(””);
+const back = profiles.length ? `<button class="btn-text" data-a="goPicker">← Back</button>` : “”;
+return `<div class="screen active" style="background:linear-gradient(180deg,#0d0d1f,#0a0a18);justify-content:center;align-items:center;padding:28px"> <div style="width:100%;max-width:320px"> ${back} <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:20px">New Explorer</div> <div style="font-size:13px;font-weight:700;color:#bbb;margin-bottom:10px">Choose your avatar</div> <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px">${avBtns}</div> <div style="font-size:13px;font-weight:700;color:#bbb;margin-bottom:8px">Your name</div> <input class="txt-input" id="nameInp" placeholder="Enter your name..." maxlength="20" value="${G.newName}" style="margin-bottom:${G.newErr?'8px':'14px'}"> ${G.newErr?`<div class="err-msg">⚠️ ${G.newErr}</div>`:””}
+<button class="btn pop" data-a="createProfile" style="background:linear-gradient(135deg,#7c3aed,#06b6d4)">Create Profile →</button>
 </div>
-<div style={{display:“flex”,flexDirection:“column”,alignItems:“flex-end”,gap:5}}>
-<div style={{fontSize:17,fontWeight:900,color:”#fcd34d”}}>{profile.xp} XP</div>
-<div style={{display:“flex”,gap:6}}>
-<button onClick={()=>go(“leaderboard”)} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:9,color:”#bbb”,padding:“4px 10px”,fontSize:12,cursor:“pointer”}}>🏆</button>
-<button onClick={()=>go(“picker”)} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:9,color:”#bbb”,padding:“4px 10px”,fontSize:12,cursor:“pointer”}}>⇄</button>
-</div>
-</div>
-</div>
-{S.xpBar(xpPct(profile.xp))}
-<div style={{display:“flex”,justifyContent:“space-between”,fontSize:10,color:”#555”,marginTop:3}}>
-<span>Level {lv}</span>
-<span>{xpNext(profile.xp)?`${profile.xp}/${xpNext(profile.xp)} XP to Level ${lv+1}`:“MAX LEVEL 🏆”}</span>
-</div>
-</div>
-<div style={pad}>
-<div style={{fontSize:11,color:”#555”,fontWeight:600,textTransform:“uppercase”,letterSpacing:”.07em”,marginBottom:12}}>Choose a World</div>
-{WORLDS.map(w=>{
-const wd=profile.worlds[w.id];
+
+  </div>`;
+}
+
+function renderMap(){
+const p=profile(); const lv=xpLv(p.xp);
+const worldCards = WORLDS.map(w=>{
+const wd=p.worlds[w.id];
 const acc=wd.games?Math.round((wd.correct/wd.games)*100):null;
-return(
-<button key={w.id} onClick={()=>{setWorldId(w.id);go(“difficulty”);}} style={{…S.card({background:w.bg,border:`1.5px solid ${w.color}55`})}}>
-<div style={{fontSize:24,width:48,height:48,borderRadius:13,background:`${w.color}33`,border:`1.5px solid ${w.color}66`,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0}}>{w.emoji}</div>
-<div style={{flex:1}}>
-<div style={{fontWeight:800,fontSize:14,color:”#fff”,marginBottom:2}}>{w.name}</div>
-<div style={{fontSize:12,color:”#888”,marginBottom:4}}>{w.desc}</div>
-{acc!==null
-?<div style={{fontSize:11,color:w.light,fontWeight:700}}>{wd.games} games · {acc}% accuracy</div>
-:<div style={{fontSize:11,color:”#555”}}>Not played yet</div>}
-</div>
-<span style={{fontSize:20,color:w.light}}>›</span>
-</button>
-);
-})}
+return `<button class="card" style="background:${w.bg};border:1.5px solid ${w.color}55" data-a="selectWorld" data-id="${w.id}"> <div style="font-size:24px;width:48px;height:48px;border-radius:13px;background:${w.color}33;border:1.5px solid ${w.color}66;display:flex;align-items:center;justify-content:center;flex-shrink:0">${w.emoji}</div> <div style="flex:1;min-width:0"> <div style="font-weight:800;font-size:14px;color:#fff;margin-bottom:2px">${w.name}</div> <div style="font-size:12px;color:#888;margin-bottom:4px">${w.desc}</div> ${acc!==null ?`<div style="font-size:11px;color:${w.light};font-weight:700">${wd.games} games · ${acc}% accuracy</div>` :`<div style="font-size:11px;color:#555">Not played yet</div>`} </div> <span style="font-size:20px;color:${w.light};flex-shrink:0">›</span> </button>`;
+}).join(””);
+return `<div class="screen active" style="background:linear-gradient(180deg,#0d0d1f,#0a0a18)"> <div style="padding:16px 16px 12px;border-bottom:1px solid rgba(255,255,255,.07)"> <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"> <button class="avatar-circle" data-a="viewProfile" style="font-size:28px;border:none">${p.avatar}</button> <div style="flex:1"> <div style="font-size:11px;color:#666">Playing as</div> <div style="font-size:17px;font-weight:900;color:#fff">${p.name}</div> <div style="font-size:11px;color:#a78bfa;font-weight:600">Level ${lv} · ${TITLES[lv-1]}</div> </div> <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px"> <div style="font-size:17px;font-weight:900;color:#fcd34d">${p.xp} XP</div> <div style="display:flex;gap:6px"> <button style="background:rgba(255,255,255,.1);border:none;border-radius:9px;color:#bbb;padding:4px 10px;font-size:13px" data-a="goLeaderboard">🏆</button> <button style="background:rgba(255,255,255,.1);border:none;border-radius:9px;color:#bbb;padding:4px 10px;font-size:13px" data-a="goPicker">⇄</button> </div> </div> </div> ${xpBar(xpPct(p.xp))} <div style="display:flex;justify-content:space-between;font-size:10px;color:#555;margin-top:3px"> <span>Level ${lv}</span> <span>${xpNext(p.xp)?`${p.xp}/${xpNext(p.xp)} XP to Level ${lv+1}`:“MAX LEVEL 🏆”}</span>
 </div>
 </div>
-);
+<div class="pad">
+<div class="section-label">Choose a World</div>
+${worldCards}
+<div style="text-align:center;font-size:12px;color:#444;padding-top:4px">New questions every session ✨</div>
+</div>
+
+  </div>`;
 }
 
-// PROFILE VIEW
-if(screen===“profileview”&&profile){
-const lv=xpLv(profile.xp);
-return(
-<div style={{…base,minHeight:“100vh”}}>
-{nav(“My Profile”,()=>go(“map”))}
-<div style={pad}>
-<div style={{textAlign:“center”,padding:“16px 0 22px”}}>
-<div style={{fontSize:54,marginBottom:7}}>{profile.avatar}</div>
-<div style={{fontSize:22,fontWeight:900,color:”#fff”,marginBottom:3}}>{profile.name}</div>
-<div style={{fontSize:14,color:”#a78bfa”,fontWeight:700}}>Level {lv} · {TITLES[lv-1]}</div>
-</div>
-<div style={{display:“grid”,gridTemplateColumns:“1fr 1fr”,gap:10,marginBottom:16}}>
-{[[”#fcd34d”,profile.xp,“Total XP”],[”#a78bfa”,lv,“Level”],[”#67e8f9”,profile.gamesPlayed,“Games Played”],[”#6ee7b7”,profile.correctTotal,“Correct Answers”]].map(([c,v,l])=>(
-<div key={l} style={{background:“rgba(255,255,255,.06)”,border:“1px solid rgba(255,255,255,.09)”,borderRadius:16,padding:14,textAlign:“center”}}>
-<div style={{fontSize:26,fontWeight:900,color:c,marginBottom:3}}>{v}</div>
-<div style={{fontSize:11,color:”#888”}}>{l}</div>
-</div>
-))}
-</div>
-<div style={{background:“rgba(255,255,255,.05)”,border:“1px solid rgba(255,255,255,.09)”,borderRadius:16,padding:“14px 16px”,marginBottom:14}}>
-<div style={{fontSize:12,color:”#888”,marginBottom:8,fontWeight:700,textTransform:“uppercase”,letterSpacing:”.06em”}}>XP Progress</div>
-{S.xpBar(xpPct(profile.xp))}
-<div style={{display:“flex”,justifyContent:“space-between”,fontSize:11,color:”#666”,marginTop:5}}>
-<span>Level {lv}</span>
-<span>{xpNext(profile.xp)?`${profile.xp}/${xpNext(profile.xp)} XP → Level ${lv+1}`:“MAX LEVEL 🏆”}</span>
-</div>
-</div>
-<div style={{background:“rgba(255,255,255,.05)”,border:“1px solid rgba(255,255,255,.09)”,borderRadius:16,padding:“14px 16px”,marginBottom:14}}>
-<div style={{fontSize:12,color:”#888”,marginBottom:14,fontWeight:700,textTransform:“uppercase”,letterSpacing:”.06em”}}>World Accuracy</div>
-{WORLDS.map(w=>{
-const wd=profile.worlds[w.id];
+function renderProfileView(){
+const p=profile(); const lv=xpLv(p.xp);
+const worldRows = WORLDS.map(w=>{
+const wd=p.worlds[w.id];
 const acc=wd.games?Math.round((wd.correct/wd.games)*100):0;
-return(
-<div key={w.id} style={{marginBottom:12}}>
-<div style={{display:“flex”,justifyContent:“space-between”,fontSize:13,marginBottom:5}}>
-<span>{w.emoji} {w.name}</span>
-<span style={{color:”#888”}}>{wd.games} games · {acc}%</span>
-</div>
-<div style={{background:“rgba(255,255,255,.1)”,borderRadius:5,height:8,overflow:“hidden”}}>
-<div style={{height:“100%”,borderRadius:5,background:w.color,width:`${acc}%`,transition:“width .5s”}}/>
+return `<div style="margin-bottom:13px"> <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"> <span>${w.emoji} ${w.name}</span> <span style="color:#888">${wd.games} games · ${acc}%</span> </div> ${progBar(acc,w.color)} </div>`;
+}).join(””);
+const stats=[[”#fcd34d”,p.xp,“Total XP”],[”#a78bfa”,lv,“Level”],[”#67e8f9”,p.gamesPlayed,“Games Played”],[”#6ee7b7”,p.correctTotal,“Correct Answers”]];
+return `<div class="screen active" style="background:linear-gradient(180deg,#0d0d1f,#0a0a18)"> ${navBar("My Profile","goMap")} <div class="pad"> <div style="text-align:center;padding:16px 0 22px"> <div style="font-size:54px;margin-bottom:7px">${p.avatar}</div> <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:3px">${p.name}</div> <div style="font-size:14px;color:#a78bfa;font-weight:700">Level ${lv} · ${TITLES[lv-1]}</div> </div> <div class="stat-grid"> ${stats.map(([c,v,l])=>`<div class="stat-box"><div class="stat-val" style="color:${c}">${v}</div><div class="stat-lbl">${l}</div></div>`).join("")} </div> <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:14px 16px;margin-bottom:14px"> <div style="font-size:12px;color:#888;margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">XP Progress</div> ${xpBar(xpPct(p.xp),10)} <div style="display:flex;justify-content:space-between;font-size:11px;color:#666;margin-top:5px"> <span>Level ${lv}</span> <span>${xpNext(p.xp)?`${p.xp}/${xpNext(p.xp)} XP → Level ${lv+1}`:“MAX LEVEL 🏆”}</span>
 </div>
 </div>
-);
-})}
+<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:14px 16px;margin-bottom:14px">
+<div style="font-size:12px;color:#888;margin-bottom:14px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">World Accuracy</div>
+${worldRows}
 </div>
-<button onClick={()=>go(“leaderboard”)} style={S.btn(“rgba(255,255,255,.1)”,{border:“1px solid rgba(255,255,255,.2)”})}>🏆 View Leaderboard</button>
-<button onClick={deleteProfile} style={{…S.btn(“none”,{border:“none”,color:”#ef4444”,fontSize:13})}}>Delete Profile</button>
+<button class="btn btn-ghost" data-a="goLeaderboard">🏆 View Leaderboard</button>
+<button class="btn-danger" data-a="deleteProfile">Delete Profile</button>
 </div>
-</div>
-);
+
+  </div>`;
 }
 
-// LEADERBOARD
-if(screen===“leaderboard”){
+function renderLeaderboard(){
 const sorted=[…profiles].sort((a,b)=>b.xp-a.xp);
 const medals=[“🥇”,“🥈”,“🥉”];
-return(
-<div style={{…base,minHeight:“100vh”}}>
-{nav(“🏆 Leaderboard”,()=>go(“map”))}
-<div style={pad}>
-{sorted.length===0&&<div style={{textAlign:“center”,color:”#555”,padding:40}}>No players yet.</div>}
-{sorted.map((p,i)=>{
-const lv=xpLv(p.xp);
-const me=p.id===activeId;
-return(
-<div key={p.id} style={{background:me?“rgba(124,58,237,.2)”:“rgba(255,255,255,.04)”,border:`1px solid ${me?"rgba(124,58,237,.4)":"rgba(255,255,255,.08)"}`,borderRadius:15,padding:“12px 15px”,marginBottom:8,display:“flex”,alignItems:“center”,gap:12}}>
-<div style={{fontSize:20,width:28}}>{medals[i]||`${i+1}`}</div>
-<div style={{fontSize:26,width:34}}>{p.avatar}</div>
-<div style={{flex:1}}>
-<div style={{fontWeight:800,fontSize:14,color:me?”#a78bfa”:”#fff”}}>{p.name}{me?” (you)”:””}</div>
-<div style={{fontSize:11,color:”#888”}}>Level {lv} · {p.gamesPlayed} games</div>
+const rows=sorted.map((p,i)=>{
+const lv=xpLv(p.xp); const me=p.id===activeId;
+return `<div class="lb-row${me?' me':''}"> <div style="font-size:20px;width:28px;text-align:center">${medals[i]||`${i+1}`}</div> <div style="font-size:26px;width:34px;text-align:center">${p.avatar}</div> <div style="flex:1"> <div style="font-weight:800;font-size:14px;color:${me?'#a78bfa':'#fff'}">${p.name}${me?' (you)':''}</div> <div style="font-size:11px;color:#888">Level ${lv} · ${p.gamesPlayed} games</div> </div> <div style="text-align:right"> <div style="font-weight:900;font-size:19px;color:#fcd34d">${p.xp}</div> <div style="font-size:11px;color:#666">XP</div> </div> </div>`;
+}).join(””);
+return `<div class="screen active" style="background:#0d0d1f"> ${navBar("🏆 Leaderboard","goMap")} <div class="pad"> ${sorted.length?rows:`<div style="text-align:center;color:#555;padding:40px">No players yet.</div>`}
 </div>
-<div style={{textAlign:“right”}}>
-<div style={{fontWeight:900,fontSize:19,color:”#fcd34d”}}>{p.xp}</div>
-<div style={{fontSize:11,color:”#666”}}>XP</div>
-</div>
-</div>
-);
-})}
-</div>
-</div>
-);
+
+  </div>`;
 }
 
-// DIFFICULTY
-if(screen===“difficulty”&&world) return(
-<div style={{…base,background:world.bg,minHeight:“100vh”,display:“flex”,flexDirection:“column”}}>
-{nav(world.name,()=>go(“map”))}
-<div style={{flex:1,display:“flex”,flexDirection:“column”,justifyContent:“center”,padding:“24px 16px”}}>
-<div style={{fontSize:14,color:”#aaa”,textAlign:“center”,marginBottom:22}}>Choose your difficulty</div>
-{DIFFS.map(d=>(
-<button key={d.id} onClick={()=>startGame(worldId,d.id)} style={{width:“100%”,borderRadius:20,padding:“18px 20px”,marginBottom:13,display:“flex”,alignItems:“center”,gap:15,border:`1.5px solid ${d.color}44`,background:“rgba(255,255,255,.05)”,cursor:“pointer”,textAlign:“left”}}>
-<div style={{fontSize:32,width:54,height:54,borderRadius:15,background:`${d.color}22`,border:`1.5px solid ${d.color}55`,display:“flex”,alignItems:“center”,justifyContent:“center”,flexShrink:0}}>{d.emoji}</div>
-<div style={{flex:1}}>
-<div style={{fontSize:17,fontWeight:800,color:”#fff”,marginBottom:2}}>{d.label}</div>
-<div style={{fontSize:12,color:”#aaa”}}>{d.desc} · +{d.xp} XP per correct</div>
+function renderDifficulty(){
+const w=world();
+const btns=DIFFS.map(d=>` <button class="diff-btn" data-a="selectDiff" data-id="${d.id}" style="border:1.5px solid ${d.color}44"> <div class="diff-icon" style="background:${d.color}22;border:1.5px solid ${d.color}55">${d.emoji}</div> <div style="flex:1;text-align:left"> <div style="font-size:17px;font-weight:800;color:#fff;margin-bottom:2px">${d.label}</div> <div style="font-size:12px;color:#aaa">${d.desc} · +${d.xp} XP per correct</div> </div> <span style="font-size:22px;color:${d.color}">›</span> </button>`).join(””);
+return `<div class="screen active" style="background:${w.bg}">
+${navBar(w.name,“goMap”)}
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:24px 16px">
+<div style="font-size:14px;color:#aaa;text-align:center;margin-bottom:22px">Choose your difficulty</div>
+${btns}
 </div>
-<span style={{fontSize:22,color:d.color}}>›</span>
-</button>
-))}
-</div>
-</div>
-);
 
-// PLAY
-if(screen===“play”&&puzzle){
-const dots=puzzles.map((_,i)=>{
-const w=i===idx?18:8;
-const bg=i<answers.length?(answers[i]?”#10b981”:”#ef4444”):i===idx?world.light:“rgba(255,255,255,.2)”;
-return <div key={i} style={{width:w,height:8,borderRadius:4,background:bg,transition:“all .3s”}}/>;
-});
-return(
-<div style={{…base,background:world.bg,minHeight:“100vh”,display:“flex”,flexDirection:“column”}}>
-<div style={{display:“flex”,alignItems:“center”,gap:10,padding:“12px 14px”,borderBottom:“1px solid rgba(255,255,255,.08)”}}>
-<button onClick={()=>go(“map”)} style={{background:“rgba(255,255,255,.1)”,border:“none”,borderRadius:11,color:”#fff”,width:36,height:36,fontSize:16,cursor:“pointer”}}>←</button>
-<div style={{flex:1}}>
-<div style={{fontSize:12,fontWeight:700,color:”#ccc”}}>{world.emoji} {world.name}</div>
-<div style={{fontSize:11,fontWeight:600,color:diff.color}}>{diff.emoji} {diff.label}</div>
-</div>
-<div style={{display:“flex”,gap:5}}>{dots}</div>
-</div>
-<div style={{flex:1,overflowY:“auto”,padding:“16px 14px 28px”}}>
-<div style={{display:“inline-block”,background:`${diff.color}22`,border:`1px solid ${diff.color}66`,borderRadius:20,padding:“3px 12px”,fontSize:11,fontWeight:700,color:diff.color,marginBottom:13}}>
-Puzzle {idx+1} of {puzzles.length}
-</div>
-<div style={{fontSize:16,fontWeight:700,lineHeight:1.6,marginBottom:18,whiteSpace:“pre-line”,color:”#fff”}}>{puzzle.q}</div>
-
-```
-      {phase==="play"&&(
-        <>
-          {puzzle.type==="tap"&&(
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {(puzzle.options||[]).map((opt,i)=>(
-                <button key={i} onClick={()=>handleAnswer(i)} style={{borderRadius:16,padding:"17px 10px",color:"#fff",fontSize:15,fontWeight:700,border:"1px solid rgba(255,255,255,.14)",background:"rgba(255,255,255,.08)",cursor:"pointer",lineHeight:1.3,whiteSpace:"pre-line"}}>{opt}</button>
-              ))}
-            </div>
-          )}
-          {puzzle.type==="elim"&&(
-            <>
-              <p style={{color:"#aaa",fontSize:12,marginBottom:10}}>Tap your answer</p>
-              <div style={{display:"flex",flexWrap:"wrap",gap:9}}>
-                {(puzzle.items||[]).map((item,i)=>(
-                  <button key={i} onClick={()=>handleAnswer(i)} style={{borderRadius:13,padding:"13px 15px",color:"#fff",fontSize:15,fontWeight:700,border:"1px solid rgba(255,255,255,.13)",background:"rgba(255,255,255,.08)",cursor:"pointer",flex:"1 1 auto",minWidth:68}}>{item}</button>
-                ))}
-              </div>
-            </>
-          )}
-          {!hintShown
-            ?<button onClick={()=>setHintShown(true)} style={{marginTop:13,background:"none",border:"1px dashed rgba(255,255,255,.2)",borderRadius:12,color:"#999",padding:"9px 14px",fontSize:12,cursor:"pointer",width:"100%"}}>💡 Show hint</button>
-            :<div style={{marginTop:11,background:"rgba(245,158,11,.1)",border:"1px solid rgba(245,158,11,.3)",borderRadius:13,padding:"11px 14px",fontSize:13,color:"#fcd34d",lineHeight:1.5}}>💡 {puzzle.hint}</div>
-          }
-        </>
-      )}
-
-      {phase==="feedback"&&(
-        <div>
-          <div style={{background:lastOk?"rgba(16,185,129,.15)":"rgba(239,68,68,.12)",border:`1.5px solid ${lastOk?"#10b981":"#ef4444"}`,borderRadius:17,padding:17,marginBottom:13}}>
-            <div style={{fontSize:26,marginBottom:6}}>{lastOk?"✅":"❌"}</div>
-            <div style={{fontWeight:800,fontSize:17,marginBottom:7,color:"#fff"}}>{lastOk?"Correct!":"Not quite…"}</div>
-            <div style={{fontSize:14,color:"#fff",lineHeight:1.6}}>{puzzle.explain}</div>
-          </div>
-          {lastOk
-            ?<button onClick={nextPuzzle} style={S.btn(`linear-gradient(135deg,${world.color},${world.light})`)}>{idx<puzzles.length-1?"Next Puzzle →":"See Results 🎯"}</button>
-            :<button onClick={()=>{setPhase("play");setLastOk(null);}} style={S.btn("rgba(255,255,255,.1)",{border:"1px solid rgba(255,255,255,.2)"})}>Try Again 🔄</button>
-          }
-        </div>
-      )}
-    </div>
-  </div>
-);
-```
-
+  </div>`;
 }
 
-// RESULT
-if(screen===“result”&&world&&diff&&profile){
-const pct=Math.round((score/puzzles.length)*100);
-const xpGained=score*diff.xp;
-const newXP=profile.xp;
+function renderPlay(){
+const w=world(), d=diff(), p=G.puzzles[G.idx];
+const total=G.puzzles.length;
+const dots=G.puzzles.map((_,i)=>{
+const width=i===G.idx?18:8;
+const bg=i<G.answers.length?(G.answers[i]?”#10b981”:”#ef4444”):i===G.idx?w.light:“rgba(255,255,255,.2)”;
+return `<div class="dot" style="width:${width}px;background:${bg}"></div>`;
+}).join(””);
+
+let body=””;
+if(G.phase===“play”){
+if(p.type===“tap”){
+body=`<div class="opts-grid">${(p.options||[]).map((o,i)=>`<button class="opt" data-a="answer" data-i="${i}">${o}</button>`).join("")}</div>`;
+} else {
+body=`<p style="color:#aaa;font-size:12px;margin-bottom:10px">Tap your answer</p> <div class="elims">${(p.items||[]).map((o,i)=>`<button class="elim" data-a="answer" data-i="${i}">${o}</button>`).join("")}</div>`;
+}
+body += G.hintShown
+?`<div class="hint-box">💡 ${p.hint}</div>`
+:`<button class="hint-btn" data-a="showHint">💡 Show hint</button>`;
+} else {
+const ok=G.lastOk;
+body=`<div class="fb-box ${ok?'fb-ok':'fb-bad'}"> <div style="font-size:26px;margin-bottom:6px">${ok?"✅":"❌"}</div> <div style="font-weight:800;font-size:17px;margin-bottom:7px;color:#fff">${ok?"Correct!":"Not quite…"}</div> <div style="font-size:14px;color:#fff;line-height:1.6">${p.explain}</div> </div> ${ok ?`<button class="btn pop" data-a="next" style="background:linear-gradient(135deg,${w.color},${w.light})">${G.idx<total-1?“Next Puzzle →”:“See Results 🎯”}</button>` :`<button class="btn btn-ghost pop" data-a="retry">Try Again 🔄</button>` }`;
+}
+
+return `<div class="screen active" style="background:${w.bg}">
+<div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.08)">
+<button class="back-btn" data-a="goMap">←</button>
+<div style="flex:1">
+<div style="font-size:12px;font-weight:700;color:#ccc">${w.emoji} ${w.name}</div>
+<div style="font-size:11px;font-weight:600;color:${d.color}">${d.emoji} ${d.label}</div>
+</div>
+<div class="dots">${dots}</div>
+</div>
+<div class="puzzle-body">
+<div style="display:inline-block;background:${d.color}22;border:1px solid ${d.color}66;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700;color:${d.color};margin-bottom:13px">
+Puzzle ${G.idx+1} of ${total}
+</div>
+<div class="question">${p.q}</div>
+${body}
+</div>
+
+  </div>`;
+}
+
+function renderResult(){
+const w=world(), d=diff(), p=profile();
+const pct=Math.round((G.score/G.puzzles.length)*100);
+const xpGained=G.score*d.xp;
+const newXP=p.xp; // already saved
 const lv=xpLv(newXP);
 const msg=pct===100?“Perfect! 🏆”:pct>=66?“Well done! 🎉”:pct>=33?“Good effort! 💪”:“Keep practising! 🔄”;
-return(
-<div style={{…base,background:world.bg,minHeight:“100vh”,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:24,textAlign:“center”}}>
-<div style={{fontSize:56,marginBottom:10}}>{pct===100?“🏆”:pct>=66?“🎉”:“💪”}</div>
-<div style={{fontSize:22,fontWeight:900,color:”#fff”,marginBottom:5}}>{msg}</div>
-<div style={{color:”#ccc”,fontSize:14,marginBottom:6}}>{score}/{puzzles.length} correct · {diff.emoji} {diff.label}</div>
-<div style={{color:world.light,fontSize:13,fontWeight:700,marginBottom:18}}>{world.name}</div>
-<div style={{background:“rgba(255,255,255,.07)”,borderRadius:20,padding:20,marginBottom:18,width:“100%”,maxWidth:300}}>
-<div style={{display:“flex”,justifyContent:“center”,gap:3,marginBottom:10}}>
-{puzzles.map((_,i)=><span key={i} style={{fontSize:26,filter:i<score?“none”:“grayscale(1) opacity(.25)”}}>⭐</span>)}
+const stars=G.puzzles.map((_,i)=>`<span style="font-size:26px;filter:${i<G.score?'none':'grayscale(1) opacity(.25)'}">⭐</span>`).join(””);
+return `<div class="screen active" style="background:${w.bg}">
+<div class="result-wrap">
+<div style="font-size:56px;margin-bottom:10px">${pct===100?“🏆”:pct>=66?“🎉”:“💪”}</div>
+<div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:5px">${msg}</div>
+<div style="color:#ccc;font-size:14px;margin-bottom:5px">${G.score}/${G.puzzles.length} correct · ${d.emoji} ${d.label}</div>
+<div style="color:${w.light};font-size:13px;font-weight:700;margin-bottom:18px">${w.name}</div>
+<div style="background:rgba(255,255,255,.07);border-radius:20px;padding:20px;margin-bottom:18px;width:100%;max-width:300px">
+<div style="display:flex;justify-content:center;gap:3px;margin-bottom:10px">${stars}</div>
+<div style="font-size:26px;font-weight:900;color:${w.light}">+${xpGained} XP</div>
+<div style="font-size:12px;color:#888;margin-top:3px">Total: ${newXP} XP · Level ${lv} ${TITLES[lv-1]}</div>
 </div>
-<div style={{fontSize:26,fontWeight:900,color:world.light}}>+{xpGained} XP</div>
-<div style={{fontSize:12,color:”#888”,marginTop:3}}>Total: {newXP} XP · Level {lv} {TITLES[lv-1]}</div>
+<button class="btn pop" data-a="playAgain" style="background:linear-gradient(135deg,${w.color},${w.light});max-width:300px">🔄 New Questions</button>
+<button class="btn btn-ghost" data-a="goMap" style="max-width:300px">Back to Map</button>
 </div>
-<button onClick={playAgain} style={S.btn(`linear-gradient(135deg,${world.color},${world.light})`,{maxWidth:300})}>🔄 New Questions</button>
-<button onClick={()=>go(“map”)} style={S.btn(“rgba(255,255,255,.1)”,{border:“1px solid rgba(255,255,255,.2)”,maxWidth:300})}>Back to Map</button>
-</div>
-);
+
+  </div>`;
 }
 
-return <div style={{…base,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:40}}>🧠</div>;
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function render(){
+const map={
+picker:renderPicker, newprofile:renderNewProfile, map:renderMap,
+profileview:renderProfileView, leaderboard:renderLeaderboard,
+difficulty:renderDifficulty, play:renderPlay, result:renderResult,
+};
+document.getElementById(“app”).innerHTML=(map[G.screen]||renderPicker)();
+bind();
+const inp=document.getElementById(“nameInp”);
+if(inp) inp.addEventListener(“input”,e=>{ G.newName=e.target.value; });
 }
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+function bind(){
+document.querySelectorAll(”[data-a]”).forEach(el=>{
+el.addEventListener(“click”, handle);
+});
+}
+
+function handle(e){
+const a=e.currentTarget.dataset.a;
+const id=e.currentTarget.dataset.id;
+const av=e.currentTarget.dataset.av;
+const i=parseInt(e.currentTarget.dataset.i);
+
+if(a===“goPicker”)      set({screen:“picker”});
+if(a===“goMap”)         set({screen:“map”});
+if(a===“goLeaderboard”) set({screen:“leaderboard”});
+if(a===“viewProfile”)   set({screen:“profileview”});
+if(a===“goNewProfile”)  set({screen:“newprofile”,newName:””,newErr:””,newAv:AVATARS[0]});
+
+if(a===“pickAv”) set({newAv:av});
+
+if(a===“selectProfile”){ activeId=id; set({screen:“map”}); }
+
+if(a===“createProfile”){
+const n=(G.newName||””).trim();
+if(n.length<2){ set({newErr:“Name needs at least 2 characters”}); return; }
+const p=mkProfile(n,G.newAv);
+persist([…profiles,p]);
+activeId=p.id;
+set({screen:“map”,newName:””,newErr:””});
+}
+
+if(a===“deleteProfile”){
+if(!confirm(`Delete ${profile().name}? This cannot be undone.`)) return;
+persist(profiles.filter(p=>p.id!==activeId));
+activeId=null;
+set({screen:profiles.length?“picker”:“newprofile”});
+}
+
+if(a===“selectWorld”) set({screen:“difficulty”,worldId:id});
+
+if(a===“selectDiff”){
+const puzzles=shuffle(BANK[G.worldId][id]).slice(0,3);
+set({screen:“play”,diffId:id,puzzles,idx:0,phase:“play”,answers:[],score:0,hintShown:false,lastOk:null});
+}
+
+if(a===“answer”){
+if(G.phase!==“play”) return;
+const p=G.puzzles[G.idx];
+const ok=i===p.answer;
+// Visual highlight before state change
+document.querySelectorAll(”[data-a=‘answer’]”).forEach((btn,bi)=>{
+if(bi===p.answer) btn.classList.add(“ok”);
+else if(bi===i&&!ok) btn.classList.add(“bad”);
+btn.style.cursor=“default”;
+});
+const newAnswers=[…G.answers,ok];
+const newScore=ok?G.score+1:G.score;
+setTimeout(()=>set({phase:“feedback”,lastOk:ok,score:newScore,answers:newAnswers}),600);
+}
+
+if(a===“showHint”) set({hintShown:true});
+
+if(a===“retry”) set({phase:“play”,lastOk:null});
+
+if(a===“next”){
+if(G.idx<G.puzzles.length-1){
+set({idx:G.idx+1,phase:“play”,lastOk:null,hintShown:false});
+} else {
+// Save stats
+const p=profile(); const d=diff();
+const xpGained=G.score*d.xp;
+const nw={…p.worlds};
+nw[G.worldId]={games:(nw[G.worldId]?.games||0)+1,correct:(nw[G.worldId]?.correct||0)+G.score};
+updateProfile({xp:p.xp+xpGained,gamesPlayed:p.gamesPlayed+1,correctTotal:p.correctTotal+G.score,worlds:nw});
+set({screen:“result”});
+}
+}
+
+if(a===“playAgain”){
+const puzzles=shuffle(BANK[G.worldId][G.diffId]).slice(0,3);
+set({screen:“play”,puzzles,idx:0,phase:“play”,answers:[],score:0,hintShown:false,lastOk:null});
+}
+}
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+render();
+</script>
+
+</body>
+</html>
